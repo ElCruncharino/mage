@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -73,5 +72,6 @@ fun StatusBanner(status: OpStatus, modifier: Modifier = Modifier) {
     }
 }
 
-/** Make an Compose [Color] visibly distinct text — small helper kept for future use. */
-internal fun Color.orElse(fallback: Color): Color = if (this == Color.Unspecified) fallback else this
+/** Abbreviate a long age key (`age1abc…wxyz`) for compact display in chips and cards. */
+internal fun shortKey(key: String): String =
+    if (key.length <= 16) key else key.take(10) + "…" + key.takeLast(4)

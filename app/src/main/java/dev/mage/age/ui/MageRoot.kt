@@ -93,7 +93,7 @@ fun MageRoot(
                 DecryptScreen(container = container, pending = pending, unlock = unlock)
             }
             composable(Dest.KEYS.route) {
-                IdentitiesScreen(container = container, unlock = unlock)
+                KeysScreen(container = container, unlock = unlock)
             }
             composable(Dest.SETTINGS.route) {
                 SettingsScreen(container = container)

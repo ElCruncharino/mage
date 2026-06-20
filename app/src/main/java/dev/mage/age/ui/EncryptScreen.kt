@@ -249,6 +249,3 @@ fun EncryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
         StatusBanner(status)
     }
 }
-
-private fun shortKey(key: String): String =
-    if (key.length <= 16) key else key.take(10) + "…" + key.takeLast(4)

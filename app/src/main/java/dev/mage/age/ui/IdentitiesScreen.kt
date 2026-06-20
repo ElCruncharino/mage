@@ -3,10 +3,13 @@
  * Copyright (c) 2026 Nick Haghiri
  */
 
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package dev.mage.age.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +53,7 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
     var showGenerate by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
     var reveal by remember { mutableStateOf<Pair<String, String>?>(null) } // label to private key
+    var qrFor by remember { mutableStateOf<VaultIdentity?>(null) }
 
     suspend fun reload() {
         identities = withContext(Dispatchers.IO) { container.identities.list() }
@@ -60,8 +64,6 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Keys", style = MaterialTheme.typography.headlineSmall)
-
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { showGenerate = true }) { Text("Generate") }
             OutlinedButton(onClick = { showImport = true }) { Text("Import") }
@@ -85,7 +87,9 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
                     "Created ${DateFormat.getDateInstance().format(Date(identity.createdAt))}",
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { qrFor = identity }) { Text("Show QR") }
+
                     OutlinedButton(onClick = {
                         clipboard.setText(AnnotatedString(identity.recipient))
                         status = OpStatus.Success("Public key copied")
@@ -177,6 +181,10 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
             },
             dismissButton = { TextButton(onClick = { reveal = null }) { Text("Close") } },
         )
+    }
+
+    qrFor?.let { identity ->
+        QrDialog(title = identity.label, value = identity.recipient, onDismiss = { qrFor = null })
     }
 }
 
