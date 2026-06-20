@@ -128,19 +128,38 @@ fun DecryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
         }
         val batch = inputUris.size > 1
         fun proceed() = if (batch) pickFolder.launch(null) else saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
-        when (mode) {
-            DecMode.PASSPHRASE -> {
-                if (passphrase.isEmpty()) {
-                    status = OpStatus.Error("Enter the passphrase"); return
-                }
-                proceed()
+
+        scope.launch {
+            // Guard against files too large for kage's in-memory decrypt before attempting.
+            val limit = CryptoRunner.maxDecryptInputBytes()
+            val oversized = withContext(Dispatchers.IO) {
+                inputUris.firstOrNull { (SafIO.sizeBytes(context, it) ?: 0L) > limit }
             }
-            DecMode.IDENTITY -> {
-                if (identityCount == 0) {
-                    status = OpStatus.Error("No identities yet — add one under Keys"); return
+            if (oversized != null) {
+                val name = withContext(Dispatchers.IO) { SafIO.displayName(context, oversized) } ?: "This file"
+                status = OpStatus.Error(
+                    "$name is too large to decrypt on this device (~${limit / (1024 * 1024)} MB max). " +
+                        "The age library must load the whole file into memory to decrypt.",
+                )
+                return@launch
+            }
+
+            when (mode) {
+                DecMode.PASSPHRASE -> {
+                    if (passphrase.isEmpty()) {
+                        status = OpStatus.Error("Enter the passphrase")
+                    } else {
+                        proceed()
+                    }
                 }
-                scope.launch {
-                    if (unlock()) proceed() else status = OpStatus.Error("Unlock cancelled")
+                DecMode.IDENTITY -> {
+                    if (identityCount == 0) {
+                        status = OpStatus.Error("No identities yet — add one under Keys")
+                    } else if (unlock()) {
+                        proceed()
+                    } else {
+                        status = OpStatus.Error("Unlock cancelled")
+                    }
                 }
             }
         }
@@ -206,6 +225,10 @@ fun DecryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
 }
 
 private fun decryptError(t: Throwable): String {
+    if (t is OutOfMemoryError) {
+        return "Not enough memory to decrypt this file on this device — it's too large for the " +
+            "age library, which loads the whole file into memory."
+    }
     val name = t::class.simpleName ?: "Error"
     return when {
         name.contains("UserNotAuthenticated") -> "Vault locked — unlock and try again"

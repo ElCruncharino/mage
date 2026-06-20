@@ -69,6 +69,14 @@ object CryptoRunner {
         out.toByteArray()
     }
 
+    /**
+     * Conservative largest `.age` input we should attempt to decrypt on this device. kage's decrypt
+     * is NOT streaming — `AgeFile.parse` reads the whole ciphertext into a ByteArrayOutputStream and
+     * then copies it again (`toByteArray()`), so peak memory is ~2–3× the file size. We allow up to a
+     * quarter of the heap to leave room for that copy plus the rest of the app.
+     */
+    fun maxDecryptInputBytes(): Long = Runtime.getRuntime().maxMemory() / 4
+
     /** Outcome of a batch run: how many succeeded, and the source names that failed. */
     data class BatchResult(val ok: Int, val failed: List<String>) {
         val total get() = ok + failed.size
