@@ -7,6 +7,7 @@ package dev.mage.age.ui
 
 import android.content.Context
 import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import dev.mage.age.crypto.AgeCrypto
 import dev.mage.age.io.SafIO
 import java.io.ByteArrayOutputStream
@@ -66,5 +67,76 @@ object CryptoRunner {
             AgeCrypto.decrypt(identities, src, out)
         }
         out.toByteArray()
+    }
+
+    /** Outcome of a batch run: how many succeeded, and the source names that failed. */
+    data class BatchResult(val ok: Int, val failed: List<String>) {
+        val total get() = ok + failed.size
+    }
+
+    /**
+     * Encrypt each of [inputs] into a new `<name>.age` file inside the user-picked folder [tree].
+     * [onProgress] is invoked (off the main thread) before each file with the 1-based index. A
+     * per-file failure is recorded and the batch continues.
+     */
+    suspend fun encryptBatch(
+        context: Context,
+        recipients: List<Recipient>,
+        inputs: List<Uri>,
+        tree: Uri,
+        armor: Boolean,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+    ): BatchResult = withContext(Dispatchers.IO) {
+        val dir = DocumentFile.fromTreeUri(context, tree) ?: error("Cannot open the chosen folder")
+        runBatch(context, inputs, onProgress) { uri, srcName ->
+            val child = dir.createFile("application/octet-stream", SafIO.suggestEncryptedName(srcName))
+                ?: error("Could not create output file")
+            SafIO.openInput(context, uri).use { src ->
+                SafIO.openOutput(context, child.uri).use { dst ->
+                    AgeCrypto.encrypt(recipients, src, dst, armor)
+                }
+            }
+        }
+    }
+
+    /** Decrypt each of [inputs] into the user-picked folder [tree], stripping the `.age` suffix. */
+    suspend fun decryptBatch(
+        context: Context,
+        identities: List<Identity>,
+        inputs: List<Uri>,
+        tree: Uri,
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
+    ): BatchResult = withContext(Dispatchers.IO) {
+        val dir = DocumentFile.fromTreeUri(context, tree) ?: error("Cannot open the chosen folder")
+        runBatch(context, inputs, onProgress) { uri, srcName ->
+            val child = dir.createFile("application/octet-stream", SafIO.suggestDecryptedName(srcName))
+                ?: error("Could not create output file")
+            SafIO.openInput(context, uri).use { src ->
+                SafIO.openOutput(context, child.uri).use { dst ->
+                    AgeCrypto.decrypt(identities, src, dst)
+                }
+            }
+        }
+    }
+
+    private fun runBatch(
+        context: Context,
+        inputs: List<Uri>,
+        onProgress: (Int, Int) -> Unit,
+        op: (Uri, String?) -> Unit,
+    ): BatchResult {
+        var ok = 0
+        val failed = mutableListOf<String>()
+        inputs.forEachIndexed { index, uri ->
+            onProgress(index + 1, inputs.size)
+            val srcName = SafIO.displayName(context, uri)
+            try {
+                op(uri, srcName)
+                ok++
+            } catch (e: Exception) {
+                failed += (srcName ?: uri.lastPathSegment ?: "file ${index + 1}")
+            }
+        }
+        return BatchResult(ok, failed)
     }
 }

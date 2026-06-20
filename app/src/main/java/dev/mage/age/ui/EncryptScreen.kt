@@ -67,16 +67,20 @@ fun EncryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
     var savedIdentities by remember { mutableStateOf<List<VaultIdentity>>(emptyList()) }
     var savedRecipients by remember { mutableStateOf<List<SavedRecipient>>(emptyList()) }
 
-    // Input file: from a share intent, or picked here.
-    var inputUri by remember { mutableStateOf(pending.uris.firstOrNull()) }
-    var inputName by remember { mutableStateOf<String?>(null) }
+    // Input file(s): from a share intent, or picked here.
+    var inputUris by remember { mutableStateOf(pending.uris) }
+    var inputLabel by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         savedIdentities = withContext(Dispatchers.IO) { container.identities.list() }
         savedRecipients = withContext(Dispatchers.IO) { container.recipients.list() }
     }
-    LaunchedEffect(inputUri) {
-        inputName = inputUri?.let { withContext(Dispatchers.IO) { SafIO.displayName(context, it) } }
+    LaunchedEffect(inputUris) {
+        inputLabel = when {
+            inputUris.isEmpty() -> null
+            inputUris.size == 1 -> withContext(Dispatchers.IO) { SafIO.displayName(context, inputUris.first()) }
+            else -> "${inputUris.size} files"
+        }
     }
 
     // Build the kage recipient list from the current selection.
@@ -94,14 +98,16 @@ fun EncryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
         }
     }
 
-    val pickInput = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) inputUri = uri
+    val pickInput = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris ->
+        if (uris.isNotEmpty()) inputUris = uris
     }
 
     val saveOutput = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
     ) { output ->
-        val src = inputUri
+        val src = inputUris.firstOrNull()
         if (output == null || src == null) return@rememberLauncherForActivityResult
         val recipients = buildRecipients().getOrElse {
             status = OpStatus.Error(it.message ?: "Invalid recipients"); return@rememberLauncherForActivityResult
@@ -114,6 +120,27 @@ fun EncryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
                 onSuccess = { OpStatus.Success("Encrypted to ${SafIO.displayName(context, output) ?: "file"}") },
                 onFailure = { OpStatus.Error("Encryption failed: ${it.message ?: it}") },
             )
+        }
+    }
+
+    // Batch: encrypt every selected file into a chosen folder.
+    val pickFolder = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { tree ->
+        if (tree == null) return@rememberLauncherForActivityResult
+        val recipients = buildRecipients().getOrElse {
+            status = OpStatus.Error(it.message ?: "Invalid recipients"); return@rememberLauncherForActivityResult
+        }
+        status = OpStatus.Working("Encrypting…")
+        scope.launch {
+            val result = CryptoRunner.encryptBatch(context, recipients, inputUris, tree, armor) { i, n ->
+                status = OpStatus.Working("Encrypting $i of $n…")
+            }
+            status = if (result.failed.isEmpty()) {
+                OpStatus.Success("Encrypted ${result.ok} files")
+            } else {
+                OpStatus.Error("Encrypted ${result.ok}/${result.total}; failed: ${result.failed.joinToString()}")
+            }
         }
     }
 
@@ -228,21 +255,37 @@ fun EncryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
             }
         }
 
-        SectionCard("File") {
-            Text(inputName ?: "No file selected", style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+        SectionCard("Files") {
+            Text(
+                inputLabel ?: "No files selected",
+                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickInput.launch(arrayOf("*/*")) }) { Text("Select file") }
-                Button(
-                    enabled = inputUri != null,
-                    onClick = {
-                        val r = buildRecipients()
-                        if (r.isFailure) {
-                            status = OpStatus.Error(r.exceptionOrNull()?.message ?: "Invalid recipients")
-                        } else {
-                            saveOutput.launch(SafIO.suggestEncryptedName(inputName))
-                        }
-                    },
-                ) { Text("Encrypt & save") }
+                OutlinedButton(onClick = { pickInput.launch(arrayOf("*/*")) }) { Text("Select files") }
+                if (inputUris.size <= 1) {
+                    Button(
+                        enabled = inputUris.isNotEmpty(),
+                        onClick = {
+                            val r = buildRecipients()
+                            if (r.isFailure) {
+                                status = OpStatus.Error(r.exceptionOrNull()?.message ?: "Invalid recipients")
+                            } else {
+                                saveOutput.launch(SafIO.suggestEncryptedName(inputLabel))
+                            }
+                        },
+                    ) { Text("Encrypt & save") }
+                } else {
+                    Button(
+                        onClick = {
+                            val r = buildRecipients()
+                            if (r.isFailure) {
+                                status = OpStatus.Error(r.exceptionOrNull()?.message ?: "Invalid recipients")
+                            } else {
+                                pickFolder.launch(null)
+                            }
+                        },
+                    ) { Text("Encrypt ${inputUris.size} → folder") }
+                }
             }
         }
 
