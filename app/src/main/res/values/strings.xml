@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Mage</string>
+    <string name="app_tagline">age, in your pocket</string>
+
+    <string name="share_target_encrypt">Encrypt with Mage</string>
+    <string name="share_target_decrypt">Decrypt with Mage</string>
+
+    <string name="tile_encrypt">Encrypt</string>
+
+    <string name="shortcut_encrypt_short">Encrypt</string>
+    <string name="shortcut_encrypt_long">Encrypt a file</string>
+    <string name="shortcut_decrypt_short">Decrypt</string>
+    <string name="shortcut_decrypt_long">Decrypt a file</string>
+</resources>

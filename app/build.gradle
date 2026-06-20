@@ -1,0 +1,110 @@
+/*
+ * Mage — a modern Android GUI for age file encryption.
+ * Copyright (c) 2026 Nick Haghiri
+ *
+ * Android application built on the kage age-encryption library.
+ */
+
+plugins {
+    id 'com.android.application' version '9.1.0'
+    // AGP 9 compiles Kotlin via built-in Kotlin support, so the standalone 'kotlin.android' plugin
+    // is not applied. The Compose compiler plugin is still required; its version tracks the Kotlin
+    // version AGP bundles.
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.2.10'
+}
+
+android {
+    namespace = 'dev.mage.age'
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = 'dev.mage.age'
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = project.version.toString()
+        testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    // Release signing is read from a gitignored keystore.properties (see keystore.properties.example).
+    // When that file is absent (CI / fresh checkout) the release build still assembles, just unsigned,
+    // so the build never hard-fails on a missing keystore.
+    signingConfigs {
+        release {
+            def keystoreProps = file('keystore.properties')
+            if (keystoreProps.exists()) {
+                def props = new Properties()
+                keystoreProps.withInputStream { props.load(it) }
+                storeFile file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (file('keystore.properties').exists()) {
+                signingConfig = signingConfigs.release
+            }
+        }
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    // The age implementation. Mage is a GUI on top of it.
+    implementation 'com.github.android-password-store:kage:0.3.0'
+
+    def composeBom = platform('androidx.compose:compose-bom:2026.05.01')
+    implementation composeBom
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.10.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0'
+    implementation 'androidx.navigation:navigation-compose:2.8.5'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+
+    // Biometric / device-credential gate for the identity vault. MainActivity is a FragmentActivity
+    // (BiometricPrompt requires one), so depend on a modern fragment explicitly rather than relying
+    // on biometric's older transitive one.
+    implementation 'androidx.biometric:biometric:1.1.0'
+    implementation 'androidx.fragment:fragment-ktx:1.8.5'
+
+    // QR: generate (zxing core) and scan (CameraX feeds frames to zxing). Fully offline — no Play
+    // Services dependency, important for a privacy tool.
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'androidx.camera:camera-camera2:1.4.1'
+    implementation 'androidx.camera:camera-lifecycle:1.4.1'
+    implementation 'androidx.camera:camera-view:1.4.1'
+
+    // Pure-JVM unit tests of the crypto facade (kage is JVM, so these run without a device).
+    testImplementation 'junit:junit:4.13.2'
+}

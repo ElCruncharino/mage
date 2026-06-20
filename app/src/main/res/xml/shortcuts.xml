@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="encrypt"
+        android:enabled="true"
+        android:icon="@drawable/ic_tile_lock"
+        android:shortcutShortLabel="@string/shortcut_encrypt_short"
+        android:shortcutLongLabel="@string/shortcut_encrypt_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="dev.mage.age"
+            android:targetClass="dev.mage.age.MainActivity">
+            <extra
+                android:name="dev.mage.age.START_DEST"
+                android:value="encrypt" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="decrypt"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_decrypt"
+        android:shortcutShortLabel="@string/shortcut_decrypt_short"
+        android:shortcutLongLabel="@string/shortcut_decrypt_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="dev.mage.age"
+            android:targetClass="dev.mage.age.MainActivity">
+            <extra
+                android:name="dev.mage.age.START_DEST"
+                android:value="decrypt" />
+        </intent>
+    </shortcut>
+</shortcuts>

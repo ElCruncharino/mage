@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Encrypted/decrypted outputs are written here briefly so they can be handed to other apps via
+         a content:// URI through the system share sheet. App-private cache, not world-readable. -->
+    <cache-path name="shared" path="share/" />
+</paths>

@@ -1,0 +1,8 @@
+<resources>
+    <!-- Launch-window background, shown for the instant before Compose draws. Tracks light/dark via
+         the values-night override. -->
+    <color name="mage_window_background">#FFFBFE</color>
+
+    <!-- Adaptive launcher icon background. A calm indigo — "mobile age", quietly secure. -->
+    <color name="ic_launcher_background">#2E4BA6</color>
+</resources>

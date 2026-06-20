@@ -1,0 +1,9 @@
+<resources>
+    <!-- Launch theme only: the UI itself is Jetpack Compose / Material 3. Using a platform Material
+         theme avoids pulling in the AppCompat/Material-Components view libraries. -->
+    <style name="Theme.Mage" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/mage_window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

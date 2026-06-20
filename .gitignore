@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+**/build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.kotlin/
+captures/
+
+# Signing — never commit real keystores or their passwords
+app/keystore.properties
+*.jks
+*.keystore
+
+# OS
+.DS_Store
