@@ -33,6 +33,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
 import dev.mage.age.crypto.Identities
+import dev.mage.age.qr.QrScanner
 import dev.mage.age.store.SavedRecipient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
