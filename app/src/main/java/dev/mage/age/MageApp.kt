@@ -6,6 +6,7 @@
 package dev.mage.age
 
 import android.app.Application
+import dev.mage.age.store.BiometricGate
 import dev.mage.age.store.IdentityStore
 import dev.mage.age.store.KeystoreVault
 import dev.mage.age.store.RecipientStore
@@ -32,8 +33,20 @@ class MageApp : Application() {
 
 /** Holds the singletons used across the app. */
 class AppContainer(app: Application) {
+    private val appContext = app.applicationContext
     val settings = SettingsStore(app)
     val vault = KeystoreVault(app)
     val identities = IdentityStore(app, vault)
     val recipients = RecipientStore(app)
+
+    /**
+     * The lock mode to actually create the vault key with. Auth-binding the key only makes sense if
+     * the device can satisfy that auth; otherwise sealing (which also needs auth on a bound key)
+     * could never succeed, so fall back to a non-auth key.
+     */
+    val effectiveBiometricLock: Boolean
+        get() = settings.biometricLock && BiometricGate.canAuthenticate(appContext)
+
+    /** Create the vault key if absent, using the effective lock mode. */
+    fun ensureVaultKey() = vault.ensureKey(effectiveBiometricLock)
 }

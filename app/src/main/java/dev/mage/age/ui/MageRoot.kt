@@ -96,7 +96,7 @@ fun MageRoot(
                 KeysScreen(container = container, unlock = unlock)
             }
             composable(Dest.SETTINGS.route) {
-                SettingsScreen(container = container)
+                SettingsScreen(container = container, unlock = unlock)
             }
         }
     }

@@ -128,9 +128,12 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
             onConfirm = { label ->
                 showGenerate = false
                 scope.launch {
+                    if (!unlock()) {
+                        status = OpStatus.Error("Unlock cancelled"); return@launch
+                    }
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            container.vault.ensureKey(container.settings.biometricLock)
+                            container.ensureVaultKey()
                             container.identities.generate(label)
                         }
                     }.onSuccess { reload(); status = OpStatus.Success("Identity created") }
@@ -146,9 +149,12 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
             onConfirm = { label, key ->
                 showImport = false
                 scope.launch {
+                    if (!unlock()) {
+                        status = OpStatus.Error("Unlock cancelled"); return@launch
+                    }
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            container.vault.ensureKey(container.settings.biometricLock)
+                            container.ensureVaultKey()
                             container.identities.import(label, key)
                         }
                     }.onSuccess { reload(); status = OpStatus.Success("Identity imported") }
