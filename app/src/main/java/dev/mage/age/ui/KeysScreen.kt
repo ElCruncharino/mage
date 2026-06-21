@@ -16,15 +16,20 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import dev.mage.age.AppContainer
 
 /** The "Keys" destination: two tabs for your own identities and your recipient address book. */
 @Composable
-fun KeysScreen(container: AppContainer, unlock: suspend () -> Boolean) {
+fun KeysScreen(
+    container: AppContainer,
+    unlock: suspend () -> Boolean,
+) {
     var tab by remember { mutableIntStateOf(0) }
 
     Column(Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = tab) {
+        // Transparent track so the gradient backdrop shows through the tab bar.
+        TabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Identities") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Recipients") })
         }

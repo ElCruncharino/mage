@@ -5,22 +5,16 @@
 
 package dev.mage.age.ui
 
+import android.widget.EditText
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,26 +25,35 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
 import dev.mage.age.crypto.Passphrase
 import dev.mage.age.io.SafIO
+import dev.mage.age.ui.components.FilePickCard
+import dev.mage.age.ui.components.PrimaryActionButton
+import dev.mage.age.ui.components.SecurePasswordField
+import dev.mage.age.ui.components.SegmentedButtonGroup
+import dev.mage.age.ui.components.readPasswordChars
 import kage.Identity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Arrays
 
 private enum class DecMode { IDENTITY, PASSPHRASE }
 
 @Composable
-fun DecryptScreen(container: AppContainer, pending: PendingInput, unlock: suspend () -> Boolean) {
+fun DecryptScreen(
+    container: AppContainer,
+    pending: PendingInput,
+    unlock: suspend () -> Boolean,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var mode by remember { mutableStateOf(DecMode.IDENTITY) }
-    var passphrase by remember { mutableStateOf("") }
+    var pwField by remember { mutableStateOf<EditText?>(null) }
+    var showPw by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
     var inputUris by remember { mutableStateOf(pending.uris) }
     var inputLabel by remember { mutableStateOf<String?>(null) }
@@ -60,93 +63,113 @@ fun DecryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
         identityCount = withContext(Dispatchers.IO) { container.identities.list().size }
     }
     LaunchedEffect(inputUris) {
-        inputLabel = when {
-            inputUris.isEmpty() -> null
-            inputUris.size == 1 -> withContext(Dispatchers.IO) { SafIO.displayName(context, inputUris.first()) }
-            else -> "${inputUris.size} files"
-        }
+        inputLabel =
+            when {
+                inputUris.isEmpty() -> null
+                inputUris.size == 1 -> withContext(Dispatchers.IO) { SafIO.displayName(context, inputUris.first()) }
+                else -> "${inputUris.size} files"
+            }
     }
 
-    // Build the identities to try, either from the unlocked vault or from a passphrase.
-    suspend fun buildIdentities(): List<Identity> = withContext(Dispatchers.IO) {
+    // Build the identities to try, either from the unlocked vault or from a passphrase. The passphrase
+    // chars are read on the main thread (View access) and wiped once kage has copied them.
+    suspend fun buildIdentities(): List<Identity> =
         when (mode) {
-            DecMode.PASSPHRASE -> listOf(Passphrase.identity(passphrase.toCharArray()))
-            DecMode.IDENTITY -> container.identities.list().map { container.identities.open(it) }
-        }
-    }
-
-    val pickInput = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments(),
-    ) { uris ->
-        if (uris.isNotEmpty()) inputUris = uris
-    }
-
-    val saveOutput = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream"),
-    ) { output ->
-        val src = inputUris.firstOrNull()
-        if (output == null || src == null) return@rememberLauncherForActivityResult
-        status = OpStatus.Working("Decrypting…")
-        scope.launch {
-            status = runCatching {
-                CryptoRunner.decryptToUri(context, buildIdentities(), src, output)
-                output
-            }.fold(
-                onSuccess = { OpStatus.Success("Decrypted to ${SafIO.displayName(context, it) ?: "file"}") },
-                onFailure = { OpStatus.Error(decryptError(it)) },
-            )
-        }
-    }
-
-    val pickFolder = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree(),
-    ) { tree ->
-        if (tree == null) return@rememberLauncherForActivityResult
-        status = OpStatus.Working("Decrypting…")
-        scope.launch {
-            status = runCatching {
-                val identities = buildIdentities()
-                CryptoRunner.decryptBatch(context, identities, inputUris, tree) { i, n ->
-                    status = OpStatus.Working("Decrypting $i of $n…")
+            DecMode.PASSPHRASE -> {
+                val chars = readPasswordChars(pwField) ?: throw IllegalArgumentException("Enter the passphrase")
+                try {
+                    listOf(Passphrase.identity(chars))
+                } finally {
+                    Arrays.fill(chars, ' ')
                 }
-            }.fold(
-                onSuccess = { result ->
-                    if (result.failed.isEmpty()) {
-                        OpStatus.Success("Decrypted ${result.ok} files")
-                    } else {
-                        OpStatus.Error("Decrypted ${result.ok}/${result.total}; failed: ${result.failed.joinToString()}")
-                    }
-                },
-                onFailure = { OpStatus.Error(decryptError(it)) },
-            )
+            }
+            DecMode.IDENTITY ->
+                withContext(Dispatchers.IO) {
+                    container.identities.list().map { container.identities.open(it) }
+                }
         }
-    }
+
+    val pickInput =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenMultipleDocuments(),
+        ) { uris ->
+            if (uris.isNotEmpty()) inputUris = uris
+        }
+
+    val saveOutput =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/octet-stream"),
+        ) { output ->
+            val src = inputUris.firstOrNull()
+            if (output == null || src == null) return@rememberLauncherForActivityResult
+            status = OpStatus.Working("Decrypting…")
+            scope.launch {
+                status =
+                    runCatching {
+                        CryptoRunner.decryptToUri(context, buildIdentities(), src, output)
+                        output
+                    }.fold(
+                        onSuccess = { OpStatus.Success("Decrypted to ${SafIO.displayName(context, it) ?: "file"}") },
+                        onFailure = { OpStatus.Error(decryptError(it)) },
+                    )
+            }
+        }
+
+    val pickFolder =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocumentTree(),
+        ) { tree ->
+            if (tree == null) return@rememberLauncherForActivityResult
+            status = OpStatus.Working("Decrypting…")
+            scope.launch {
+                status =
+                    runCatching {
+                        val identities = buildIdentities()
+                        CryptoRunner.decryptBatch(context, identities, inputUris, tree) { i, n ->
+                            status = OpStatus.Working("Decrypting $i of $n…")
+                        }
+                    }.fold(
+                        onSuccess = { result ->
+                            if (result.failed.isEmpty()) {
+                                OpStatus.Success("Decrypted ${result.ok} files")
+                            } else {
+                                OpStatus.Error("Decrypted ${result.ok}/${result.total}; failed: ${result.failed.joinToString()}")
+                            }
+                        },
+                        onFailure = { OpStatus.Error(decryptError(it)) },
+                    )
+            }
+        }
 
     fun startDecrypt() {
         if (inputUris.isEmpty()) {
-            status = OpStatus.Error("Select a .age file first"); return
+            status = OpStatus.Error("Choose a .age file first")
+            return
         }
         val batch = inputUris.size > 1
+
         fun proceed() = if (batch) pickFolder.launch(null) else saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
 
         scope.launch {
             // Guard against files too large for kage's in-memory decrypt before attempting.
             val limit = CryptoRunner.maxDecryptInputBytes()
-            val oversized = withContext(Dispatchers.IO) {
-                inputUris.firstOrNull { (SafIO.sizeBytes(context, it) ?: 0L) > limit }
-            }
+            val oversized =
+                withContext(Dispatchers.IO) {
+                    inputUris.firstOrNull { (SafIO.sizeBytes(context, it) ?: 0L) > limit }
+                }
             if (oversized != null) {
                 val name = withContext(Dispatchers.IO) { SafIO.displayName(context, oversized) } ?: "This file"
-                status = OpStatus.Error(
-                    "$name is too large to decrypt on this device (~${limit / (1024 * 1024)} MB max). " +
-                        "The age library must load the whole file into memory to decrypt.",
-                )
+                status =
+                    OpStatus.Error(
+                        "$name is too large to decrypt on this device (~${limit / (1024 * 1024)} MB max). " +
+                            "The age library must load the whole file into memory to decrypt.",
+                    )
                 return@launch
             }
 
             when (mode) {
                 DecMode.PASSPHRASE -> {
-                    if (passphrase.isEmpty()) {
+                    if ((pwField?.text?.length ?: 0) == 0) {
                         status = OpStatus.Error("Enter the passphrase")
                     } else {
                         proceed()
@@ -165,42 +188,36 @@ fun DecryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
         }
     }
 
+    val busy = status is OpStatus.Working
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Decrypt", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Open an encrypted .age file with one of your keys, or with its passphrase.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = mode == DecMode.IDENTITY,
-                onClick = { mode = DecMode.IDENTITY },
-                label = { Text("My identities") },
-            )
-            FilterChip(
-                selected = mode == DecMode.PASSPHRASE,
-                onClick = { mode = DecMode.PASSPHRASE },
-                label = { Text("Passphrase") },
-            )
-        }
+        SegmentedButtonGroup(
+            options = listOf("My identities", "Passphrase"),
+            selectedIndex = if (mode == DecMode.IDENTITY) 0 else 1,
+            onSelect = { mode = if (it == 0) DecMode.IDENTITY else DecMode.PASSPHRASE },
+        )
 
         if (mode == DecMode.PASSPHRASE) {
-            SectionCard("Passphrase") {
-                OutlinedTextField(
-                    value = passphrase,
-                    onValueChange = { passphrase = it },
-                    label = { Text("Passphrase") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            SecurePasswordField(
+                label = "Passphrase",
+                show = showPw,
+                onToggleShow = { showPw = !showPw },
+                onViewCreated = { pwField = it },
+            )
         } else {
             SectionCard("Identities") {
                 Text(
                     if (identityCount == 0) {
-                        "No identities saved yet. Add one under the Keys tab."
+                        "No identities saved yet. Add one under the Keys tab, then come back to decrypt."
                     } else {
                         "Mage will try your $identityCount saved " +
                             if (identityCount == 1) "identity." else "identities."
@@ -210,15 +227,19 @@ fun DecryptScreen(container: AppContainer, pending: PendingInput, unlock: suspen
             }
         }
 
-        SectionCard("Files") {
-            Text(inputLabel ?: "No files selected", style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickInput.launch(arrayOf("*/*")) }) { Text("Select .age file(s)") }
-                Button(enabled = inputUris.isNotEmpty(), onClick = { startDecrypt() }) {
-                    Text(if (inputUris.size > 1) "Decrypt ${inputUris.size} → folder" else "Decrypt & save")
-                }
-            }
-        }
+        FilePickCard(
+            label = "File to decrypt",
+            chosen = inputLabel,
+            hint = "No .age file selected",
+            onPick = { pickInput.launch(arrayOf("*/*")) },
+        )
+
+        PrimaryActionButton(
+            label = if (inputUris.size > 1) "Decrypt ${inputUris.size} → folder" else "Decrypt & save",
+            busy = busy,
+            enabled = inputUris.isNotEmpty(),
+            onClick = { startDecrypt() },
+        )
 
         StatusBanner(status)
     }

@@ -27,7 +27,6 @@ import dev.mage.age.ui.theme.MageTheme
  * material should never leak to those surfaces.
  */
 class MainActivity : FragmentActivity() {
-
     private var launchTarget by mutableStateOf(LaunchTarget(LaunchTarget.Destination.HOME))
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,7 +39,12 @@ class MainActivity : FragmentActivity() {
         val container = MageApp.from(application)
 
         setContent {
-            MageTheme {
+            val theme = container.theme
+            MageTheme(
+                themeMode = theme.themeMode,
+                useDynamicColor = theme.dynamicColor,
+                seedColorArgb = theme.accentSeed,
+            ) {
                 MageRoot(
                     container = container,
                     initialTarget = launchTarget,

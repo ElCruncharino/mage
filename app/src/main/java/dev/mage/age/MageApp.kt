@@ -11,13 +11,13 @@ import dev.mage.age.store.IdentityStore
 import dev.mage.age.store.KeystoreVault
 import dev.mage.age.store.RecipientStore
 import dev.mage.age.store.SettingsStore
+import dev.mage.age.ui.theme.ThemeController
 
 /**
  * Application entry point and tiny manual DI container. Mage has few moving parts, so a full DI
  * framework would be overkill; everything is constructed once here and read via [from].
  */
 class MageApp : Application() {
-
     lateinit var container: AppContainer
         private set
 
@@ -38,6 +38,7 @@ class AppContainer(app: Application) {
     val vault = KeystoreVault(app)
     val identities = IdentityStore(app, vault)
     val recipients = RecipientStore(app)
+    val theme = ThemeController(settings)
 
     /**
      * The lock mode to actually create the vault key with. Auth-binding the key only makes sense if

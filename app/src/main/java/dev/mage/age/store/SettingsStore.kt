@@ -7,9 +7,11 @@ package dev.mage.age.store
 
 import android.content.Context
 
+/** Light/dark preference. SYSTEM defers to the OS setting. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 /** Small key/value app preferences. */
 class SettingsStore(context: Context) {
-
     private val prefs = context.getSharedPreferences("mage.settings", Context.MODE_PRIVATE)
 
     /** Whether the identity vault is locked behind biometric/device-credential auth. */
@@ -27,9 +29,33 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_INITIALIZED, false)
         set(value) = prefs.edit().putBoolean(KEY_INITIALIZED, value).apply()
 
+    /** Light/dark/system appearance choice. */
+    var themeMode: ThemeMode
+        get() =
+            runCatching { ThemeMode.valueOf(prefs.getString(KEY_THEME_MODE, null) ?: "") }
+                .getOrDefault(ThemeMode.SYSTEM)
+        set(value) = prefs.edit().putString(KEY_THEME_MODE, value.name).apply()
+
+    /** Use the OS Material You wallpaper palette on Android 12+ (when no accent seed is set). */
+    var dynamicColor: Boolean
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
+        set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, value).apply()
+
+    /** A user-picked accent seed colour (ARGB), or null to fall back to dynamic/brand colours. */
+    var accentSeed: Int?
+        get() = if (prefs.contains(KEY_ACCENT_SEED)) prefs.getInt(KEY_ACCENT_SEED, 0) else null
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) editor.remove(KEY_ACCENT_SEED) else editor.putInt(KEY_ACCENT_SEED, value)
+            editor.apply()
+        }
+
     companion object {
         private const val KEY_BIOMETRIC_LOCK = "biometric_lock"
         private const val KEY_DEFAULT_ARMOR = "default_armor"
         private const val KEY_INITIALIZED = "initialized"
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+        private const val KEY_ACCENT_SEED = "accent_seed"
     }
 }
