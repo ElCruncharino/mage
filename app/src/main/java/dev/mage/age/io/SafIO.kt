@@ -77,6 +77,17 @@ object SafIO {
         return null
     }
 
+    /** age's conventional file extension. Both binary and ASCII-armored age files use it. */
+    const val AGE_EXTENSION = ".age"
+
+    /**
+     * True if [name] is an age file by its extension (case-insensitive). Used to gate decryption to
+     * `.age` files: the Storage Access Framework can only filter the system picker by MIME type, and
+     * age files have no registered MIME type, so name-based validation after selection is the only
+     * reliable way to restrict input to age files.
+     */
+    fun isAgeName(name: String?): Boolean = name?.endsWith(AGE_EXTENSION, ignoreCase = true) == true
+
     /**
      * Suggested output name for an encrypt/decrypt result:
      *  - encrypting `report.pdf`  -> `report.pdf.age`

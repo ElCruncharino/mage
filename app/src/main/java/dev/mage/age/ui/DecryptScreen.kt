@@ -107,7 +107,21 @@ fun DecryptScreen(
         rememberLauncherForActivityResult(
             ActivityResultContracts.OpenMultipleDocuments(),
         ) { uris ->
-            if (uris.isNotEmpty()) inputUris = uris
+            if (uris.isEmpty()) return@rememberLauncherForActivityResult
+            // The system picker can't filter by extension, so restrict to .age files here: keep the
+            // age files, report any others, and never select a non-age file for decryption.
+            scope.launch {
+                val named = withContext(Dispatchers.IO) { uris.map { it to SafIO.displayName(context, it) } }
+                val accepted = named.filter { SafIO.isAgeName(it.second) }
+                val rejected = named.filterNot { SafIO.isAgeName(it.second) }
+                if (accepted.isNotEmpty()) inputUris = accepted.map { it.first }
+                status =
+                    when {
+                        rejected.isEmpty() -> OpStatus.Idle
+                        accepted.isEmpty() -> OpStatus.Error("Mage only decrypts .age files.")
+                        else -> OpStatus.Error("Ignored non-.age file(s): ${rejected.mapNotNull { it.second }.joinToString()}")
+                    }
+            }
         }
 
     // The decrypt already happened (into [pendingPlain]) before this dialog opened, so saving is just
@@ -203,6 +217,17 @@ fun DecryptScreen(
         }
 
         scope.launch {
+            // Restrict decryption to age files. This also covers files arriving via the "Decrypt with
+            // Mage" share target, which the manifest cannot filter by extension.
+            val nonAge =
+                withContext(Dispatchers.IO) {
+                    inputUris.filterNot { SafIO.isAgeName(SafIO.displayName(context, it)) }
+                }
+            if (nonAge.isNotEmpty()) {
+                status = OpStatus.Error("Mage only decrypts .age files.")
+                return@launch
+            }
+
             // Guard against files too large for kage's in-memory decrypt before attempting.
             val limit = CryptoRunner.maxDecryptInputBytes()
             val oversized =
