@@ -16,3 +16,9 @@ dependencyResolutionManagement {
 
 rootProject.name = 'mage'
 include 'app'
+
+// kage (the age library) is developed in lockstep with Mage. Including it as a composite build
+// substitutes the published 'com.github.android-password-store:kage' coordinate (see app/build.gradle)
+// with the local checkout in ../kage, so edits to the library flow straight into the app with no
+// publish step. To pin a released artifact instead, drop this line and re-add the version coordinate.
+includeBuild('../kage')

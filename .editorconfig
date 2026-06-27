@@ -1,0 +1,7 @@
+root = true
+
+[*.{kt,kts}]
+# @Composable functions are PascalCase by Compose convention, which collides with ktlint's
+# standard:function-naming rule. Tell ktlint to skip naming checks on Composable (and Preview)
+# functions so the convention and the formatter agree.
+ktlint_function_naming_ignore_when_annotated_with = Composable, Preview
