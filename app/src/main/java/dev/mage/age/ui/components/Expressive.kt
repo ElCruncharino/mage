@@ -148,7 +148,13 @@ private fun NavPill(item: NavBarItem) {
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         }
+    // Use the selectable Surface overload (rather than a Modifier.selectable on the outer modifier)
+    // so the press/hover/focus state layer is clipped to the pill shape. Applying selectable outside
+    // the Surface drew the ripple over the full rectangular tap-target bounds — a sharp-cornered
+    // highlight that flashed on tap.
     Surface(
+        selected = item.selected,
+        onClick = item.onClick,
         shape = RoundedCornerShape(20.dp),
         color = bg,
         modifier =
@@ -158,8 +164,7 @@ private fun NavPill(item: NavBarItem) {
                     contentDescription = item.label
                     role = Role.Tab
                     stateDescription = if (item.selected) "Selected" else "Not selected"
-                }.selectable(selected = item.selected, role = Role.Tab, onClick = item.onClick)
-                .heightIn(min = 48.dp),
+                }.heightIn(min = 48.dp),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
