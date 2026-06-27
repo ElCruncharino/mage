@@ -5,6 +5,7 @@
 
 package dev.mage.age.ui
 
+import android.provider.DocumentsContract
 import android.widget.EditText
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +40,7 @@ import kage.Identity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Arrays
 
 private enum class DecMode { IDENTITY, PASSPHRASE }
@@ -54,6 +57,9 @@ fun DecryptScreen(
     var mode by remember { mutableStateOf(DecMode.IDENTITY) }
     var pwField by remember { mutableStateOf<EditText?>(null) }
     var showPw by remember { mutableStateOf(false) }
+    // Holds the validated plaintext (decrypted into private cache) between a successful single-file
+    // decrypt and the user picking where to save it. Null when there's nothing pending.
+    var pendingPlain by remember { mutableStateOf<File?>(null) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
     var inputUris by remember { mutableStateOf(pending.uris) }
     var inputLabel by remember { mutableStateOf<String?>(null) }
@@ -71,6 +77,12 @@ fun DecryptScreen(
             }
     }
 
+    // Decrypted plaintext must never linger on disk. If we leave the screen while a plaintext is still
+    // staged in cache (e.g. the user backs out before picking a save location), delete it on dispose.
+    DisposableEffect(Unit) {
+        onDispose { pendingPlain?.delete() }
+    }
+
     // Build the identities to try, either from the unlocked vault or from a passphrase. The passphrase
     // chars are read on the main thread (View access) and wiped once kage has copied them.
     suspend fun buildIdentities(): List<Identity> =
@@ -83,10 +95,12 @@ fun DecryptScreen(
                     Arrays.fill(chars, ' ')
                 }
             }
-            DecMode.IDENTITY ->
+
+            DecMode.IDENTITY -> {
                 withContext(Dispatchers.IO) {
                     container.identities.list().map { container.identities.open(it) }
                 }
+            }
         }
 
     val pickInput =
@@ -96,22 +110,37 @@ fun DecryptScreen(
             if (uris.isNotEmpty()) inputUris = uris
         }
 
+    // The decrypt already happened (into [pendingPlain]) before this dialog opened, so saving is just
+    // a copy — by this point we know the file is decryptable, so the destination is only ever created
+    // for a good result.
     val saveOutput =
         rememberLauncherForActivityResult(
             ActivityResultContracts.CreateDocument("application/octet-stream"),
         ) { output ->
-            val src = inputUris.firstOrNull()
-            if (output == null || src == null) return@rememberLauncherForActivityResult
-            status = OpStatus.Working("Decrypting…")
+            val temp = pendingPlain
+            pendingPlain = null
+            if (output == null || temp == null) {
+                // Save dialog cancelled — drop the validated plaintext from cache, leave no file.
+                temp?.delete()
+                if (status is OpStatus.Working) status = OpStatus.Idle
+                return@rememberLauncherForActivityResult
+            }
+            status = OpStatus.Working("Saving…")
             scope.launch {
                 status =
                     runCatching {
-                        CryptoRunner.decryptToUri(context, buildIdentities(), src, output)
+                        CryptoRunner.copyFileToUri(context, temp, output)
                         output
                     }.fold(
                         onSuccess = { OpStatus.Success("Decrypted to ${SafIO.displayName(context, it) ?: "file"}") },
-                        onFailure = { OpStatus.Error(decryptError(it)) },
+                        onFailure = {
+                            // The copy failed partway — remove the partial file the picker created so we
+                            // never leave a truncated "decrypted" output behind.
+                            runCatching { DocumentsContract.deleteDocument(context.contentResolver, output) }
+                            OpStatus.Error(decryptError(it))
+                        },
                     )
+                temp.delete()
             }
         }
 
@@ -148,7 +177,30 @@ fun DecryptScreen(
         }
         val batch = inputUris.size > 1
 
-        fun proceed() = if (batch) pickFolder.launch(null) else saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
+        // For a single file, decrypt into private cache first (validating the identity/passphrase) and
+        // only open the save dialog if that succeeds — so a wrong passphrase never creates a 0-byte
+        // file. Batch keeps its own per-file handling (failures are reported and cleaned up).
+        suspend fun proceed() {
+            if (batch) {
+                pickFolder.launch(null)
+                return
+            }
+            val src = inputUris.first()
+            status = OpStatus.Working("Decrypting…")
+            val temp = withContext(Dispatchers.IO) { File.createTempFile("mage-dec", ".tmp", context.cacheDir) }
+            runCatching {
+                CryptoRunner.decryptToFile(context, buildIdentities(), src, temp)
+            }.fold(
+                onSuccess = {
+                    pendingPlain = temp
+                    saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
+                },
+                onFailure = {
+                    temp.delete()
+                    status = OpStatus.Error(decryptError(it))
+                },
+            )
+        }
 
         scope.launch {
             // Guard against files too large for kage's in-memory decrypt before attempting.
@@ -175,6 +227,7 @@ fun DecryptScreen(
                         proceed()
                     }
                 }
+
                 DecMode.IDENTITY -> {
                     if (identityCount == 0) {
                         status = OpStatus.Error("No identities yet — add one under Keys")
@@ -252,9 +305,16 @@ private fun decryptError(t: Throwable): String {
     }
     val name = t::class.simpleName ?: "Error"
     return when {
-        name.contains("UserNotAuthenticated") -> "Vault locked — unlock and try again"
-        name.contains("NoIdentities") || name.contains("IncorrectHMAC") || name.contains("Identity") ->
+        name.contains("UserNotAuthenticated") -> {
+            "Vault locked — unlock and try again"
+        }
+
+        name.contains("NoIdentities") || name.contains("IncorrectHMAC") || name.contains("Identity") -> {
             "None of your keys (or this passphrase) can open this file"
-        else -> "Decryption failed: ${t.message ?: name}"
+        }
+
+        else -> {
+            "Decryption failed: ${t.message ?: name}"
+        }
     }
 }

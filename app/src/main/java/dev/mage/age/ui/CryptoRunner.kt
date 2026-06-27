@@ -10,18 +10,20 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import dev.mage.age.crypto.AgeCrypto
 import dev.mage.age.io.SafIO
-import java.io.ByteArrayOutputStream
 import kage.Identity
 import kage.Recipient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 /**
  * Runs encrypt/decrypt against the verified [AgeCrypto] facade, wiring Storage Access Framework
  * streams in and out. Everything runs on [Dispatchers.IO]; streaming keeps memory flat for big files.
  */
 object CryptoRunner {
-
     suspend fun encryptToUri(
         context: Context,
         recipients: List<Recipient>,
@@ -49,25 +51,47 @@ object CryptoRunner {
         }
     }
 
+    /**
+     * Decrypt [input] into a private cache [dest] file. This exists so the UI can *validate* that a
+     * file is decryptable (correct identity / passphrase) before asking the user where to save —
+     * avoiding the case where a wrong passphrase leaves an empty 0-byte file at the destination the
+     * SAF picker already created. The plaintext lives only in app-private cache and the caller is
+     * responsible for copying it out (see [copyFileToUri]) and deleting it promptly.
+     */
+    suspend fun decryptToFile(
+        context: Context,
+        identities: List<Identity>,
+        input: Uri,
+        dest: File,
+    ) = withContext(Dispatchers.IO) {
+        SafIO.openInput(context, input).use { src ->
+            FileOutputStream(dest).use { dst ->
+                AgeCrypto.decrypt(identities, src, dst)
+            }
+        }
+    }
+
+    /** Copy an already-decrypted local [file] out to the user-picked [output] location. */
+    suspend fun copyFileToUri(
+        context: Context,
+        file: File,
+        output: Uri,
+    ) = withContext(Dispatchers.IO) {
+        FileInputStream(file).use { src ->
+            SafIO.openOutput(context, output).use { dst ->
+                src.copyTo(dst)
+            }
+        }
+    }
+
     suspend fun encryptText(
         recipients: List<Recipient>,
         text: String,
         armor: Boolean,
-    ): ByteArray = withContext(Dispatchers.IO) {
-        AgeCrypto.encryptBytes(recipients, text.toByteArray(Charsets.UTF_8), armor)
-    }
-
-    suspend fun decryptToBytes(
-        context: Context,
-        identities: List<Identity>,
-        input: Uri,
-    ): ByteArray = withContext(Dispatchers.IO) {
-        val out = ByteArrayOutputStream()
-        SafIO.openInput(context, input).use { src ->
-            AgeCrypto.decrypt(identities, src, out)
+    ): ByteArray =
+        withContext(Dispatchers.IO) {
+            AgeCrypto.encryptBytes(recipients, text.toByteArray(Charsets.UTF_8), armor)
         }
-        out.toByteArray()
-    }
 
     /**
      * Conservative largest `.age` input we should attempt to decrypt on this device. kage's decrypt
@@ -78,7 +102,10 @@ object CryptoRunner {
     fun maxDecryptInputBytes(): Long = Runtime.getRuntime().maxMemory() / 4
 
     /** Outcome of a batch run: how many succeeded, and the source names that failed. */
-    data class BatchResult(val ok: Int, val failed: List<String>) {
+    data class BatchResult(
+        val ok: Int,
+        val failed: List<String>,
+    ) {
         val total get() = ok + failed.size
     }
 
@@ -94,18 +121,25 @@ object CryptoRunner {
         tree: Uri,
         armor: Boolean,
         onProgress: (Int, Int) -> Unit = { _, _ -> },
-    ): BatchResult = withContext(Dispatchers.IO) {
-        val dir = DocumentFile.fromTreeUri(context, tree) ?: error("Cannot open the chosen folder")
-        runBatch(context, inputs, onProgress) { uri, srcName ->
-            val child = dir.createFile("application/octet-stream", SafIO.suggestEncryptedName(srcName))
-                ?: error("Could not create output file")
-            SafIO.openInput(context, uri).use { src ->
-                SafIO.openOutput(context, child.uri).use { dst ->
-                    AgeCrypto.encrypt(recipients, src, dst, armor)
+    ): BatchResult =
+        withContext(Dispatchers.IO) {
+            val dir = DocumentFile.fromTreeUri(context, tree) ?: error("Cannot open the chosen folder")
+            runBatch(context, inputs, onProgress) { uri, srcName ->
+                val child =
+                    dir.createFile("application/octet-stream", SafIO.suggestEncryptedName(srcName))
+                        ?: error("Could not create output file")
+                try {
+                    SafIO.openInput(context, uri).use { src ->
+                        SafIO.openOutput(context, child.uri).use { dst ->
+                            AgeCrypto.encrypt(recipients, src, dst, armor)
+                        }
+                    }
+                } catch (t: Throwable) {
+                    child.delete() // don't leave a partial/empty file behind on failure
+                    throw t
                 }
             }
         }
-    }
 
     /** Decrypt each of [inputs] into the user-picked folder [tree], stripping the `.age` suffix. */
     suspend fun decryptBatch(
@@ -114,18 +148,25 @@ object CryptoRunner {
         inputs: List<Uri>,
         tree: Uri,
         onProgress: (Int, Int) -> Unit = { _, _ -> },
-    ): BatchResult = withContext(Dispatchers.IO) {
-        val dir = DocumentFile.fromTreeUri(context, tree) ?: error("Cannot open the chosen folder")
-        runBatch(context, inputs, onProgress) { uri, srcName ->
-            val child = dir.createFile("application/octet-stream", SafIO.suggestDecryptedName(srcName))
-                ?: error("Could not create output file")
-            SafIO.openInput(context, uri).use { src ->
-                SafIO.openOutput(context, child.uri).use { dst ->
-                    AgeCrypto.decrypt(identities, src, dst)
+    ): BatchResult =
+        withContext(Dispatchers.IO) {
+            val dir = DocumentFile.fromTreeUri(context, tree) ?: error("Cannot open the chosen folder")
+            runBatch(context, inputs, onProgress) { uri, srcName ->
+                val child =
+                    dir.createFile("application/octet-stream", SafIO.suggestDecryptedName(srcName))
+                        ?: error("Could not create output file")
+                try {
+                    SafIO.openInput(context, uri).use { src ->
+                        SafIO.openOutput(context, child.uri).use { dst ->
+                            AgeCrypto.decrypt(identities, src, dst)
+                        }
+                    }
+                } catch (t: Throwable) {
+                    child.delete() // a wrong passphrase/identity must not leave a 0-byte file behind
+                    throw t
                 }
             }
         }
-    }
 
     private fun runBatch(
         context: Context,
@@ -141,7 +182,11 @@ object CryptoRunner {
             try {
                 op(uri, srcName)
                 ok++
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
+            } catch (e: Throwable) {
+                // Throwable, not Exception: a per-file OutOfMemoryError (kage's decrypt buffers the
+                // whole file) must be recorded as one failure, not abort the whole batch.
                 failed += (srcName ?: uri.lastPathSegment ?: "file ${index + 1}")
             }
         }

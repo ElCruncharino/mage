@@ -12,6 +12,7 @@ import dev.mage.age.crypto.AgeCrypto
 import dev.mage.age.crypto.Identities
 import dev.mage.age.crypto.Passphrase
 import dev.mage.age.io.SafIO
+import dev.mage.age.ui.CryptoRunner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -21,8 +22,10 @@ import kotlinx.coroutines.withContext
  * CLI (or any age tool) can also decrypt with the same passphrase.
  */
 object BackupManager {
-
-    data class ImportResult(val imported: Int, val skipped: Int)
+    data class ImportResult(
+        val imported: Int,
+        val skipped: Int,
+    )
 
     /**
      * Export every stored identity to [output], encrypted to [passphrase]. Requires a valid auth
@@ -35,9 +38,10 @@ object BackupManager {
         armor: Boolean,
         output: Uri,
     ) = withContext(Dispatchers.IO) {
-        val entries = container.identities.list().map { record ->
-            BackupCodec.Entry(record.label, Identities.encode(container.identities.open(record)))
-        }
+        val entries =
+            container.identities.list().map { record ->
+                BackupCodec.Entry(record.label, Identities.encode(container.identities.open(record)))
+            }
         require(entries.isNotEmpty()) { "No identities to back up" }
 
         val bundle = BackupCodec.serialize(entries)
@@ -57,27 +61,40 @@ object BackupManager {
         container: AppContainer,
         passphrase: CharArray,
         input: Uri,
-    ): ImportResult = withContext(Dispatchers.IO) {
-        val ciphertext = SafIO.openInput(context, input).use { it.readBytes() }
-        val plaintext = AgeCrypto.decryptBytes(listOf(Passphrase.identity(passphrase)), ciphertext)
-        val entries = BackupCodec.deserialize(plaintext)
-
-        container.ensureVaultKey()
-        val existing = container.identities.list().map { it.recipient }.toMutableSet()
-
-        var imported = 0
-        var skipped = 0
-        entries.forEach { entry ->
-            val identity = Identities.parseIdentity(entry.key)
-            val recipient = Identities.encode(identity.recipient())
-            if (recipient in existing) {
-                skipped++
-            } else {
-                container.identities.add(entry.label, identity)
-                existing.add(recipient)
-                imported++
+    ): ImportResult =
+        withContext(Dispatchers.IO) {
+            // Restore reads the whole backup into memory and kage's decrypt copies it again, so guard
+            // against an oversized pick (the restore picker accepts any file) the same way DecryptScreen
+            // does. Unknown size (null) is allowed — there is nothing cheap to check against.
+            val size = SafIO.sizeBytes(context, input)
+            val limit = CryptoRunner.maxDecryptInputBytes()
+            require(size == null || size <= limit) {
+                "This backup is too large to restore on this device"
             }
+            val ciphertext = SafIO.openInput(context, input).use { it.readBytes() }
+            val plaintext = AgeCrypto.decryptBytes(listOf(Passphrase.identity(passphrase)), ciphertext)
+            val entries = BackupCodec.deserialize(plaintext)
+
+            container.ensureVaultKey()
+            val existing =
+                container.identities
+                    .list()
+                    .map { it.recipient }
+                    .toMutableSet()
+
+            var imported = 0
+            var skipped = 0
+            entries.forEach { entry ->
+                val identity = Identities.parseIdentity(entry.key)
+                val recipient = Identities.encode(identity.recipient())
+                if (recipient in existing) {
+                    skipped++
+                } else {
+                    container.identities.add(entry.label, identity)
+                    existing.add(recipient)
+                    imported++
+                }
+            }
+            ImportResult(imported, skipped)
         }
-        ImportResult(imported, skipped)
-    }
 }
