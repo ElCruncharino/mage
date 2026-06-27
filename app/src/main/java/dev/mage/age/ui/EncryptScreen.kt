@@ -25,11 +25,14 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,8 +44,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
-import dev.mage.age.crypto.Identities
 import dev.mage.age.crypto.Passphrase
+import dev.mage.age.crypto.Recipients
 import dev.mage.age.io.SafIO
 import dev.mage.age.store.SavedRecipient
 import dev.mage.age.store.VaultIdentity
@@ -56,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Arrays
+import kotlin.math.roundToInt
 
 private enum class EncMode { RECIPIENTS, PASSPHRASE }
 
@@ -69,12 +73,15 @@ fun EncryptScreen(
     val scope = rememberCoroutineScope()
 
     var mode by remember { mutableStateOf(EncMode.RECIPIENTS) }
-    val chosen = remember { mutableStateListOf<String>() } // canonical age1 recipients
+    val chosen = remember { mutableStateListOf<String>() } // canonical age1 / ssh recipients
     var recipientInput by remember { mutableStateOf("") }
     var pwField by remember { mutableStateOf<EditText?>(null) }
     var confirmField by remember { mutableStateOf<EditText?>(null) }
     var showPw by remember { mutableStateOf(false) }
     var armor by remember { mutableStateOf(container.settings.defaultArmor) }
+    // scrypt work factor for passphrase mode; default is kage's, exposed for an "Advanced" control.
+    var workFactor by remember { mutableIntStateOf(Passphrase.DEFAULT_WORK_FACTOR) }
+    var showAdvanced by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
 
     var savedIdentities by remember { mutableStateOf<List<VaultIdentity>>(emptyList()) }
@@ -107,15 +114,16 @@ fun EncryptScreen(
                     val confirm = readPasswordChars(confirmField)
                     try {
                         require(confirm != null && pw.contentEquals(confirm)) { "Passphrases do not match" }
-                        listOf(Passphrase.recipient(pw))
+                        listOf(Passphrase.recipient(pw, workFactor))
                     } finally {
                         Arrays.fill(pw, ' ')
                         if (confirm != null) Arrays.fill(confirm, ' ')
                     }
                 }
+
                 EncMode.RECIPIENTS -> {
                     require(chosen.isNotEmpty()) { "Add at least one recipient" }
-                    chosen.map { Identities.parseRecipient(it) }
+                    chosen.map { Recipients.parse(it) }
                 }
             }
         }
@@ -210,7 +218,8 @@ fun EncryptScreen(
         if (mode == EncMode.RECIPIENTS) {
             SectionCard("Recipients") {
                 Text(
-                    "Add the public keys (age1…) of who should be able to open this file.",
+                    "Add the public keys of who should be able to open this file — age (age1…) or " +
+                        "SSH (ssh-ed25519 / ssh-rsa) keys.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -221,21 +230,20 @@ fun EncryptScreen(
                     OutlinedTextField(
                         value = recipientInput,
                         onValueChange = { recipientInput = it },
-                        label = { Text("age1… public key") },
+                        label = { Text("age1… or ssh-… public key") },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
                     Button(
                         onClick = {
-                            val text = recipientInput.trim()
-                            val parsed = runCatching { Identities.parseRecipient(text) }
-                            if (parsed.isSuccess) {
-                                val canonical = Identities.encode(parsed.getOrThrow())
-                                if (canonical !in chosen) chosen.add(canonical)
+                            val canonical = runCatching { Recipients.canonical(recipientInput) }
+                            if (canonical.isSuccess) {
+                                val key = canonical.getOrThrow()
+                                if (key !in chosen) chosen.add(key)
                                 recipientInput = ""
                                 status = OpStatus.Idle
                             } else {
-                                status = OpStatus.Error("Not a valid age recipient")
+                                status = OpStatus.Error("Not a valid age or SSH public key")
                             }
                         },
                         modifier = Modifier.heightIn(min = 48.dp),
@@ -251,9 +259,9 @@ fun EncryptScreen(
                                 label = { Text(shortKey(key)) },
                                 trailingIcon = { Text("✕") },
                                 modifier =
-                                Modifier.semantics {
-                                    contentDescription = "Recipient ${shortKey(key)}, tap to remove"
-                                },
+                                    Modifier.semantics {
+                                        contentDescription = "Recipient ${shortKey(key)}, tap to remove"
+                                    },
                             )
                         }
                     }
@@ -298,6 +306,33 @@ fun EncryptScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            TextButton(onClick = { showAdvanced = !showAdvanced }) {
+                Text(if (showAdvanced) "Hide advanced" else "Advanced")
+            }
+            if (showAdvanced) {
+                Text(
+                    "Passphrase hardening (scrypt work factor): $workFactor",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = workFactor.toFloat(),
+                    onValueChange = { workFactor = it.roundToInt() },
+                    valueRange = Passphrase.MIN_WORK_FACTOR.toFloat()..Passphrase.MAX_WORK_FACTOR.toFloat(),
+                    steps = Passphrase.MAX_WORK_FACTOR - Passphrase.MIN_WORK_FACTOR - 1,
+                    modifier =
+                        Modifier.semantics {
+                            stateDescription = "scrypt work factor $workFactor"
+                        },
+                )
+                Text(
+                    "Higher is harder to brute-force but slower to open. Default is " +
+                        "${Passphrase.DEFAULT_WORK_FACTOR}; ${Passphrase.MAX_WORK_FACTOR} is the highest " +
+                        "Mage can still decrypt.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         SectionCard("Options") {
@@ -309,9 +344,9 @@ fun EncryptScreen(
                     checked = armor,
                     onCheckedChange = { armor = it },
                     modifier =
-                    Modifier.semantics {
-                        stateDescription = if (armor) "ASCII armor on" else "ASCII armor off"
-                    },
+                        Modifier.semantics {
+                            stateDescription = if (armor) "ASCII armor on" else "ASCII armor off"
+                        },
                 )
                 Column {
                     Text("ASCII armor")

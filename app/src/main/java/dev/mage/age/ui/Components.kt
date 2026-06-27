@@ -55,11 +55,17 @@ fun SectionCard(
 sealed interface OpStatus {
     data object Idle : OpStatus
 
-    data class Working(val message: String) : OpStatus
+    data class Working(
+        val message: String,
+    ) : OpStatus
 
-    data class Success(val message: String) : OpStatus
+    data class Success(
+        val message: String,
+    ) : OpStatus
 
-    data class Error(val message: String) : OpStatus
+    data class Error(
+        val message: String,
+    ) : OpStatus
 }
 
 /**
@@ -82,9 +88,9 @@ fun StatusBanner(
     val colors = statusColors(level)
     Card(
         modifier =
-        modifier
-            .fillMaxWidth()
-            .semantics { liveRegion = LiveRegionMode.Assertive },
+            modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Assertive },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colors.container),
     ) {
@@ -94,17 +100,32 @@ fun StatusBanner(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (level) {
-                StatusLevel.WORKING ->
+                StatusLevel.WORKING -> {
                     ExpressiveLoadingIndicator(diameter = 20.dp, strokeWidth = 2.dp, color = colors.content)
-                StatusLevel.SUCCESS ->
+                }
+
+                StatusLevel.SUCCESS -> {
                     Icon(Icons.Filled.CheckCircle, contentDescription = "Success", tint = colors.content, modifier = Modifier.size(20.dp))
-                StatusLevel.ERROR ->
+                }
+
+                StatusLevel.ERROR -> {
                     Icon(Icons.Filled.Error, contentDescription = "Error", tint = colors.content, modifier = Modifier.size(20.dp))
+                }
             }
             Text(message, color = colors.content, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
 
-/** Abbreviate a long age key (`age1abc…wxyz`) for compact display in chips and cards. */
-internal fun shortKey(key: String): String = if (key.length <= 16) key else key.take(10) + "…" + key.takeLast(4)
+/**
+ * Abbreviate a public key for compact display in chips and cards. age keys collapse to
+ * `age1abc…wxyz`; SSH keys keep their type so they stay recognizable, e.g. `ssh-ed25519 …AB12CD34`.
+ */
+internal fun shortKey(key: String): String {
+    val parts = key.split(' ', limit = 2)
+    if (parts.size == 2 && parts[0].startsWith("ssh-")) {
+        val body = parts[1]
+        return parts[0] + " " + if (body.length <= 12) body else "…" + body.takeLast(8)
+    }
+    return if (key.length <= 16) key else key.take(10) + "…" + key.takeLast(4)
+}

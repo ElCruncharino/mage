@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
-import dev.mage.age.crypto.Identities
+import dev.mage.age.crypto.Recipients
 import dev.mage.age.qr.QrScanner
 import dev.mage.age.store.SavedRecipient
 import kotlinx.coroutines.Dispatchers
@@ -62,11 +62,11 @@ fun RecipientsScreen(container: AppContainer) {
             onResult = { text ->
                 scanning = false
                 val trimmed = text.trim()
-                if (Identities.looksLikeRecipient(trimmed)) {
+                if (Recipients.looksLikeRecipient(trimmed)) {
                     prefillKey = trimmed
                     showAdd = true
                 } else {
-                    status = OpStatus.Error("That QR isn't an age recipient")
+                    status = OpStatus.Error("That QR isn't an age or SSH recipient")
                 }
             },
             onClose = { scanning = false },
@@ -79,15 +79,22 @@ fun RecipientsScreen(container: AppContainer) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { prefillKey = ""; showAdd = true }) { Text("Add") }
-            OutlinedButton(onClick = { status = OpStatus.Idle; scanning = true }) { Text("Scan QR") }
+            Button(onClick = {
+                prefillKey = ""
+                showAdd = true
+            }) { Text("Add") }
+            OutlinedButton(onClick = {
+                status = OpStatus.Idle
+                scanning = true
+            }) { Text("Scan QR") }
         }
 
         if (recipients.isEmpty()) {
             SectionCard("No recipients yet") {
                 Text(
-                    "Save the public keys (age1…) of people you encrypt to. Add one by pasting a key " +
-                        "or scanning their QR code — then pick them on the Encrypt screen.",
+                    "Save the public keys of people you encrypt to — age (age1…) or SSH " +
+                        "(ssh-ed25519 / ssh-rsa). Add one by pasting a key or scanning their QR code, " +
+                        "then pick them on the Encrypt screen.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -124,8 +131,10 @@ fun RecipientsScreen(container: AppContainer) {
                 showAdd = false
                 scope.launch {
                     runCatching { withContext(Dispatchers.IO) { container.recipients.add(label, key) } }
-                        .onSuccess { reload(); status = OpStatus.Success("Recipient saved") }
-                        .onFailure { status = OpStatus.Error("Not a valid age recipient") }
+                        .onSuccess {
+                            reload()
+                            status = OpStatus.Success("Recipient saved")
+                        }.onFailure { status = OpStatus.Error("Not a valid age or SSH public key") }
                 }
             },
         )
@@ -159,7 +168,7 @@ private fun AddRecipientDialog(
                 OutlinedTextField(
                     value = key,
                     onValueChange = { key = it },
-                    label = { Text("age1… public key") },
+                    label = { Text("age1… or ssh-… public key") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
