@@ -112,4 +112,36 @@ class AgeCryptoTest {
         val ct = AgeCrypto.encryptBytes(listOf(Identities.parseRecipient(encodedRecipient)), message, false)
         assertArrayEquals(message, AgeCrypto.decryptBytes(listOf(id), ct))
     }
+
+    /**
+     * Regression test: a multi-chunk payload (> kage's 64 KiB STREAM chunk) decrypted through a
+     * stream that returns short reads — exactly how file / SAF (`content://`) streams behave. This is
+     * the real-world "encrypt on device, decrypt fails with 'error occurred while decrypting stream'"
+     * bug: the chunk reader treated a mid-stream short read as the final chunk. In-memory byte-array
+     * round-trips never hit it because ByteArrayInputStream always fills the buffer.
+     */
+    @Test
+    fun multiChunk_throughPartialReadStream_roundTrips() {
+        val id = Identities.generate()
+        val big = ByteArray(200_000) { (it % 251).toByte() } // ~3 chunks
+        val ct = AgeCrypto.encryptBytes(listOf(id.recipient()), big, armor = false)
+
+        // A stream that never returns more than a handful of bytes per read.
+        val drip =
+            object : java.io.InputStream() {
+                private val src = java.io.ByteArrayInputStream(ct)
+
+                override fun read(): Int = src.read()
+
+                override fun read(
+                    b: ByteArray,
+                    off: Int,
+                    len: Int,
+                ): Int = src.read(b, off, minOf(len, 7))
+            }
+        val out = java.io.ByteArrayOutputStream()
+        AgeCrypto.decrypt(listOf(id), drip, out)
+
+        assertArrayEquals(big, out.toByteArray())
+    }
 }
