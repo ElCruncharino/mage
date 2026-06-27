@@ -35,7 +35,10 @@ private val DarkColors =
     )
 
 /** A background/foreground colour pair for a status indicator. */
-data class StatusColors(val container: Color, val content: Color)
+data class StatusColors(
+    val container: Color,
+    val content: Color,
+)
 
 /** Outcome severities for the status banner, used to pick a contrast-safe colour pair. */
 enum class StatusLevel { WORKING, SUCCESS, ERROR }
@@ -54,24 +57,29 @@ enum class StatusLevel { WORKING, SUCCESS, ERROR }
 fun statusColors(level: StatusLevel): StatusColors {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     return when (level) {
-        StatusLevel.SUCCESS ->
+        StatusLevel.SUCCESS -> {
             if (dark) {
                 StatusColors(Color(0xFF2E4730), Color(0xFFA5D6A7))
             } else {
                 StatusColors(Color(0xFFC8E6C9), Color(0xFF1B5E20))
             }
-        StatusLevel.WORKING ->
+        }
+
+        StatusLevel.WORKING -> {
             if (dark) {
                 StatusColors(Color(0xFF1F3A4A), Color(0xFF9FD0E5))
             } else {
                 StatusColors(Color(0xFFD3E9F2), Color(0xFF0A3A4D))
             }
-        StatusLevel.ERROR ->
+        }
+
+        StatusLevel.ERROR -> {
             if (dark) {
                 StatusColors(Color(0xFF4A2426), Color(0xFFF2B8B5))
             } else {
                 StatusColors(Color(0xFFFFCDD2), Color(0xFF8C1D18))
             }
+        }
     }
 }
 
@@ -104,10 +112,17 @@ fun MageTheme(
     val context = LocalContext.current
     val colorScheme =
         when {
-            seedColorArgb != null -> schemeFromSeed(Color(seedColorArgb), dark)
-            useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            seedColorArgb != null -> {
+                schemeFromSeed(Color(seedColorArgb), dark)
+            }
+
+            useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            else -> if (dark) DarkColors else LightColors
+            }
+
+            else -> {
+                if (dark) DarkColors else LightColors
+            }
         }
     MaterialTheme(colorScheme = colorScheme, content = content)
 }

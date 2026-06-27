@@ -11,7 +11,9 @@ import android.content.Context
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /** Small key/value app preferences. */
-class SettingsStore(context: Context) {
+class SettingsStore(
+    context: Context,
+) {
     private val prefs = context.getSharedPreferences("mage.settings", Context.MODE_PRIVATE)
 
     /** Whether the identity vault is locked behind biometric/device-credential auth. */

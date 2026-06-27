@@ -15,7 +15,6 @@ import kage.crypto.x25519.X25519Recipient
  *  - recipient (public):  `age1...`
  */
 object Identities {
-
     /** Generate a fresh random X25519 identity (keypair). */
     fun generate(): X25519Identity = X25519Identity.`new`()
 
@@ -44,10 +43,8 @@ object Identities {
     fun encode(recipient: X25519Recipient): String = recipient.encodeToString()
 
     /** Loose check that a string looks like an age public recipient, for input validation. */
-    fun looksLikeRecipient(text: String): Boolean =
-        text.trim().startsWith("age1")
+    fun looksLikeRecipient(text: String): Boolean = text.trim().startsWith("age1")
 
     /** Loose check that a string looks like an age private identity, for input validation. */
-    fun looksLikeIdentity(text: String): Boolean =
-        text.trim().startsWith("AGE-SECRET-KEY-1", ignoreCase = true)
+    fun looksLikeIdentity(text: String): Boolean = text.trim().startsWith("AGE-SECRET-KEY-1", ignoreCase = true)
 }

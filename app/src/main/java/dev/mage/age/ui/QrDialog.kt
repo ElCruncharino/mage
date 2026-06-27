@@ -25,7 +25,11 @@ import dev.mage.age.qr.QrEncoder
 
 /** Shows a public key as a scannable QR plus its text, with a copy action. */
 @Composable
-fun QrDialog(title: String, value: String, onDismiss: () -> Unit) {
+fun QrDialog(
+    title: String,
+    value: String,
+    onDismiss: () -> Unit,
+) {
     val clipboard = LocalClipboardManager.current
     val bitmap = remember(value) { QrEncoder.encode(value).asImageBitmap() }
 

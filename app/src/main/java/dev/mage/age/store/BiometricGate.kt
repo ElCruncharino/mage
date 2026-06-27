@@ -11,8 +11,8 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
-import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * Wraps [BiometricPrompt] in a suspend function. A successful prompt unlocks the [KeystoreVault]
@@ -24,7 +24,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * NOTE: requires on-device testing.
  */
 object BiometricGate {
-
     /** Authenticators we request: combine biometric + device credential where the platform allows. */
     private fun authenticators(): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -36,11 +35,9 @@ object BiometricGate {
         }
 
     /** Whether the device can satisfy our auth requirement right now. */
-    fun status(context: Context): Int =
-        BiometricManager.from(context).canAuthenticate(authenticators())
+    fun status(context: Context): Int = BiometricManager.from(context).canAuthenticate(authenticators())
 
-    fun canAuthenticate(context: Context): Boolean =
-        status(context) == BiometricManager.BIOMETRIC_SUCCESS
+    fun canAuthenticate(context: Context): Boolean = status(context) == BiometricManager.BIOMETRIC_SUCCESS
 
     /**
      * Show the prompt and suspend until the user succeeds, cancels, or it errors.
@@ -50,35 +47,44 @@ object BiometricGate {
         activity: FragmentActivity,
         title: String = "Unlock Mage",
         subtitle: String = "Authenticate to use your identities",
-    ): Boolean = suspendCancellableCoroutine { cont ->
-        val executor = androidx.core.content.ContextCompat.getMainExecutor(activity)
-        val callback = object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                if (cont.isActive) cont.resume(true)
+    ): Boolean =
+        suspendCancellableCoroutine { cont ->
+            val executor =
+                androidx.core.content.ContextCompat
+                    .getMainExecutor(activity)
+            val callback =
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        if (cont.isActive) cont.resume(true)
+                    }
+
+                    override fun onAuthenticationError(
+                        errorCode: Int,
+                        errString: CharSequence,
+                    ) {
+                        if (cont.isActive) cont.resume(false)
+                    }
+
+                    // Single failed attempt: let the prompt continue; only terminal error/cancel resumes.
+                }
+
+            val prompt = BiometricPrompt(activity, executor, callback)
+            val infoBuilder =
+                BiometricPrompt.PromptInfo
+                    .Builder()
+                    .setTitle(title)
+                    .setSubtitle(subtitle)
+                    .setAllowedAuthenticators(authenticators())
+
+            // When DEVICE_CREDENTIAL is not in the allowed set, a negative button is mandatory.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                infoBuilder.setNegativeButtonText("Cancel")
             }
 
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                if (cont.isActive) cont.resume(false)
-            }
+            val info = infoBuilder.build()
+            runCatching { prompt.authenticate(info) }
+                .onFailure { if (cont.isActive) cont.resume(false) }
 
-            // Single failed attempt: let the prompt continue; only terminal error/cancel resumes.
+            cont.invokeOnCancellation { runCatching { prompt.cancelAuthentication() } }
         }
-
-        val prompt = BiometricPrompt(activity, executor, callback)
-        val infoBuilder = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(title)
-            .setSubtitle(subtitle)
-            .setAllowedAuthenticators(authenticators())
-
-        // When DEVICE_CREDENTIAL is not in the allowed set, a negative button is mandatory.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            infoBuilder.setNegativeButtonText("Cancel")
-        }
-
-        val info = infoBuilder.build()
-        runCatching { prompt.authenticate(info) }
-            .onFailure { if (cont.isActive) cont.resume(false) }
-
-        cont.invokeOnCancellation { runCatching { prompt.cancelAuthentication() } }
-    }
 }

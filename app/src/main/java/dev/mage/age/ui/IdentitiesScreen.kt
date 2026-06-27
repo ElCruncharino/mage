@@ -36,14 +36,17 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
 import dev.mage.age.store.VaultIdentity
-import java.text.DateFormat
-import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.DateFormat
+import java.util.Date
 
 @Composable
-fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
+fun IdentitiesScreen(
+    container: AppContainer,
+    unlock: suspend () -> Boolean,
+) {
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
 
@@ -98,11 +101,15 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
                     OutlinedButton(onClick = {
                         scope.launch {
                             if (!unlock()) {
-                                status = OpStatus.Error("Unlock cancelled"); return@launch
+                                status = OpStatus.Error("Unlock cancelled")
+                                return@launch
                             }
                             runCatching { withContext(Dispatchers.IO) { container.identities.open(identity) } }
-                                .onSuccess { reveal = identity.label to dev.mage.age.crypto.Identities.encode(it) }
-                                .onFailure { status = OpStatus.Error("Could not unlock: ${it.message ?: it}") }
+                                .onSuccess {
+                                    reveal = identity.label to
+                                        dev.mage.age.crypto.Identities
+                                            .encode(it)
+                                }.onFailure { status = OpStatus.Error("Could not unlock: ${it.message ?: it}") }
                         }
                     }) { Text("Reveal private") }
 
@@ -129,15 +136,18 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
                 showGenerate = false
                 scope.launch {
                     if (!unlock()) {
-                        status = OpStatus.Error("Unlock cancelled"); return@launch
+                        status = OpStatus.Error("Unlock cancelled")
+                        return@launch
                     }
                     runCatching {
                         withContext(Dispatchers.IO) {
                             container.ensureVaultKey()
                             container.identities.generate(label)
                         }
-                    }.onSuccess { reload(); status = OpStatus.Success("Identity created") }
-                        .onFailure { status = OpStatus.Error("Failed: ${it.message ?: it}") }
+                    }.onSuccess {
+                        reload()
+                        status = OpStatus.Success("Identity created")
+                    }.onFailure { status = OpStatus.Error("Failed: ${it.message ?: it}") }
                 }
             },
         )
@@ -150,15 +160,18 @@ fun IdentitiesScreen(container: AppContainer, unlock: suspend () -> Boolean) {
                 showImport = false
                 scope.launch {
                     if (!unlock()) {
-                        status = OpStatus.Error("Unlock cancelled"); return@launch
+                        status = OpStatus.Error("Unlock cancelled")
+                        return@launch
                     }
                     runCatching {
                         withContext(Dispatchers.IO) {
                             container.ensureVaultKey()
                             container.identities.import(label, key)
                         }
-                    }.onSuccess { reload(); status = OpStatus.Success("Identity imported") }
-                        .onFailure { status = OpStatus.Error("Not a valid identity key") }
+                    }.onSuccess {
+                        reload()
+                        status = OpStatus.Success("Identity imported")
+                    }.onFailure { status = OpStatus.Error("Not a valid identity key") }
                 }
             },
         )
@@ -219,7 +232,10 @@ private fun LabelDialog(
 }
 
 @Composable
-private fun ImportDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
+private fun ImportDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit,
+) {
     var label by remember { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
     AlertDialog(

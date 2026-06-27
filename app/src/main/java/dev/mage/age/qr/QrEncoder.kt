@@ -14,13 +14,16 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
 /** Renders a string (an `age1...` recipient) as a QR-code [Bitmap], offline via ZXing. */
 object QrEncoder {
-
-    fun encode(text: String, sizePx: Int = 720): Bitmap {
-        val hints = mapOf(
-            EncodeHintType.MARGIN to 1,
-            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
-            EncodeHintType.CHARACTER_SET to "UTF-8",
-        )
+    fun encode(
+        text: String,
+        sizePx: Int = 720,
+    ): Bitmap {
+        val hints =
+            mapOf(
+                EncodeHintType.MARGIN to 1,
+                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
+                EncodeHintType.CHARACTER_SET to "UTF-8",
+            )
         val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
         val w = matrix.width
         val h = matrix.height

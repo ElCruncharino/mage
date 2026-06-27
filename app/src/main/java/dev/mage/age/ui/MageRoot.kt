@@ -47,7 +47,11 @@ import dev.mage.age.ui.components.FloatingNavBar
 import dev.mage.age.ui.components.GradientBackground
 import dev.mage.age.ui.components.NavBarItem
 
-private enum class Dest(val route: String, val label: String, val icon: ImageVector) {
+private enum class Dest(
+    val route: String,
+    val label: String,
+    val icon: ImageVector,
+) {
     ENCRYPT("encrypt", "Encrypt", Icons.Filled.Lock),
     DECRYPT("decrypt", "Decrypt", Icons.Filled.LockOpen),
     KEYS("keys", "Keys", Icons.Filled.VpnKey),
@@ -55,7 +59,9 @@ private enum class Dest(val route: String, val label: String, val icon: ImageVec
 }
 
 /** Holds files handed in by a share/open intent so the target screen can consume them once. */
-class PendingInput(initial: List<android.net.Uri>) {
+class PendingInput(
+    initial: List<android.net.Uri>,
+) {
     var uris by mutableStateOf(initial)
 }
 
@@ -114,20 +120,20 @@ fun MageRoot(
         bottomBar = {
             FloatingNavBar(
                 items =
-                Dest.entries.map { dest ->
-                    NavBarItem(
-                        label = dest.label,
-                        icon = dest.icon,
-                        selected = dest == currentDest,
-                        onClick = {
-                            navController.navigate(dest.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                    )
-                },
+                    Dest.entries.map { dest ->
+                        NavBarItem(
+                            label = dest.label,
+                            icon = dest.icon,
+                            selected = dest == currentDest,
+                            onClick = {
+                                navController.navigate(dest.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                        )
+                    },
             )
         },
     ) { innerPadding ->

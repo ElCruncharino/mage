@@ -5,6 +5,7 @@
 
 package dev.mage.age.ui.components
 
+import android.provider.Settings
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.view.inputmethod.EditorInfo
@@ -43,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +56,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -149,15 +152,14 @@ private fun NavPill(item: NavBarItem) {
         shape = RoundedCornerShape(20.dp),
         color = bg,
         modifier =
-        Modifier
-            // A single merged tab node: TalkBack reads "<label>, tab, selected/not selected".
-            .clearAndSetSemantics {
-                contentDescription = item.label
-                role = Role.Tab
-                stateDescription = if (item.selected) "Selected" else "Not selected"
-            }
-            .selectable(selected = item.selected, role = Role.Tab, onClick = item.onClick)
-            .heightIn(min = 48.dp),
+            Modifier
+                // A single merged tab node: TalkBack reads "<label>, tab, selected/not selected".
+                .clearAndSetSemantics {
+                    contentDescription = item.label
+                    role = Role.Tab
+                    stateDescription = if (item.selected) "Selected" else "Not selected"
+                }.selectable(selected = item.selected, role = Role.Tab, onClick = item.onClick)
+                .heightIn(min = 48.dp),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -200,11 +202,11 @@ fun SegmentedButtonGroup(
                 val selected = index == selectedIndex
                 val bg by animateColorAsState(
                     targetValue =
-                    if (selected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
+                        if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
                     animationSpec = tween(220),
                     label = "segBg",
                 )
@@ -216,14 +218,14 @@ fun SegmentedButtonGroup(
                     }
                 Box(
                     modifier =
-                    Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                        .height(48.dp)
-                        .padding(horizontal = 2.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .selectable(selected = selected, role = Role.RadioButton) { onSelect(index) }
-                        .semantics { stateDescription = if (selected) "Selected" else "Not selected" },
+                        Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .height(48.dp)
+                            .padding(horizontal = 2.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .selectable(selected = selected, role = Role.RadioButton) { onSelect(index) }
+                            .semantics { stateDescription = if (selected) "Selected" else "Not selected" },
                     contentAlignment = Alignment.Center,
                 ) {
                     Surface(
@@ -264,12 +266,12 @@ fun FilePickCard(
         ) {
             Column(
                 modifier =
-                Modifier
-                    .weight(1f)
-                    // Merge the label + current selection so TalkBack reads them as one phrase.
-                    .semantics(mergeDescendants = true) {
-                        contentDescription = "$label. ${chosen ?: hint}"
-                    },
+                    Modifier
+                        .weight(1f)
+                        // Merge the label + current selection so TalkBack reads them as one phrase.
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = "$label. ${chosen ?: hint}"
+                        },
             ) {
                 Text(label, fontWeight = FontWeight.SemiBold)
                 Text(
@@ -281,11 +283,11 @@ fun FilePickCard(
             OutlinedButton(
                 onClick = onPick,
                 modifier =
-                Modifier
-                    .heightIn(min = 48.dp)
-                    .semantics {
-                        contentDescription = (if (chosen == null) "Choose " else "Change ") + label
-                    },
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .semantics {
+                            contentDescription = (if (chosen == null) "Choose " else "Change ") + label
+                        },
             ) { Text(if (chosen == null) "Choose" else "Change") }
         }
     }
@@ -308,10 +310,10 @@ fun PrimaryActionButton(
         enabled = enabled && !busy,
         shape = RoundedCornerShape(20.dp),
         modifier =
-        modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .semantics { stateDescription = if (busy) "Working" else "" },
+            modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .semantics { stateDescription = if (busy) "Working" else "" },
     ) {
         if (busy) {
             ExpressiveLoadingIndicator(
@@ -328,6 +330,23 @@ fun PrimaryActionButton(
 }
 
 /**
+ * True when the user has turned animations off system-wide (animator duration scale 0 — set via
+ * Accessibility "Remove animations" or Developer options). Read once and remembered; this setting
+ * doesn't change mid-session in practice. Used to suppress continuous motion for vestibular safety.
+ */
+@Composable
+fun rememberReduceMotion(): Boolean {
+    val context = LocalContext.current
+    return remember {
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) == 0f
+    }
+}
+
+/**
  * A small custom progress indicator with an expressive feel: a rounded-cap arc whose sweep length
  * breathes while the whole thing spins. The stable Material 3 `LoadingIndicator` (expressive) is
  * still `internal` in the pinned release, so this is hand-rolled from the animation primitives.
@@ -339,6 +358,25 @@ fun ExpressiveLoadingIndicator(
     strokeWidth: Dp = 3.dp,
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
+    // Respect the system "remove animations" setting (Accessibility / Developer options). When motion
+    // is disabled we draw a static arc so the control still reads as a progress indicator — busy state
+    // is also announced via the status banner's live region, so no information is lost.
+    if (rememberReduceMotion()) {
+        Canvas(modifier = modifier.size(diameter)) {
+            val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            val inset = strokeWidth.toPx()
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = 270f,
+                useCenter = false,
+                topLeft = Offset(inset / 2f, inset / 2f),
+                size = Size(size.width - inset, size.height - inset),
+                style = stroke,
+            )
+        }
+        return
+    }
     val transition = rememberInfiniteTransition(label = "loading")
     val rotation by transition.animateFloat(
         initialValue = 0f,
@@ -377,8 +415,11 @@ internal fun readPasswordChars(editText: EditText?): CharArray? {
     if (length == 0) {
         return null
     }
+    // Copy out char-by-char via CharSequence.get rather than Editable.getChars: equivalent, avoids
+    // ever materializing a String (so the result can be wiped), and not subject to platform-method
+    // resolution quirks.
     val chars = CharArray(length)
-    editable.getChars(0, length, chars, 0)
+    for (i in 0 until length) chars[i] = editable[i]
     return chars
 }
 
@@ -407,11 +448,11 @@ fun SecurePasswordField(
                 TextButton(
                     onClick = onToggleShow,
                     modifier =
-                    Modifier
-                        .heightIn(min = 48.dp)
-                        .semantics {
-                            contentDescription = if (show) "Hide $label" else "Show $label"
-                        },
+                        Modifier
+                            .heightIn(min = 48.dp)
+                            .semantics {
+                                contentDescription = if (show) "Hide $label" else "Show $label"
+                            },
                 ) { Text(if (show) "Hide" else "Show") }
             }
             androidx.compose.ui.viewinterop.AndroidView(

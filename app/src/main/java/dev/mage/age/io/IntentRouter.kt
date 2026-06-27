@@ -27,7 +27,6 @@ data class LaunchTarget(
  *  - plain launch -> home
  */
 object IntentRouter {
-
     const val EXTRA_START_DEST = "dev.mage.age.START_DEST"
 
     fun route(intent: Intent?): LaunchTarget {
@@ -40,21 +39,23 @@ object IntentRouter {
             Intent.ACTION_SEND -> {
                 val uri = intent.parcelable<Uri>(Intent.EXTRA_STREAM)
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                val dest = if (viaDecryptAlias) {
-                    LaunchTarget.Destination.DECRYPT
-                } else {
-                    LaunchTarget.Destination.ENCRYPT
-                }
+                val dest =
+                    if (viaDecryptAlias) {
+                        LaunchTarget.Destination.DECRYPT
+                    } else {
+                        LaunchTarget.Destination.ENCRYPT
+                    }
                 LaunchTarget(dest, listOfNotNull(uri), text)
             }
 
             Intent.ACTION_SEND_MULTIPLE -> {
                 val uris = intent.parcelableList<Uri>(Intent.EXTRA_STREAM)
-                val dest = if (viaDecryptAlias) {
-                    LaunchTarget.Destination.DECRYPT
-                } else {
-                    LaunchTarget.Destination.ENCRYPT
-                }
+                val dest =
+                    if (viaDecryptAlias) {
+                        LaunchTarget.Destination.DECRYPT
+                    } else {
+                        LaunchTarget.Destination.ENCRYPT
+                    }
                 LaunchTarget(dest, uris)
             }
 
@@ -65,18 +66,26 @@ object IntentRouter {
             }
 
             else -> {
-                val dest = when (intent.getStringExtra(EXTRA_START_DEST)) {
-                    "encrypt" -> LaunchTarget.Destination.ENCRYPT
-                    "decrypt" -> LaunchTarget.Destination.DECRYPT
-                    else ->
-                        if (viaEncryptAlias) {
+                val dest =
+                    when (intent.getStringExtra(EXTRA_START_DEST)) {
+                        "encrypt" -> {
                             LaunchTarget.Destination.ENCRYPT
-                        } else if (viaDecryptAlias) {
-                            LaunchTarget.Destination.DECRYPT
-                        } else {
-                            LaunchTarget.Destination.HOME
                         }
-                }
+
+                        "decrypt" -> {
+                            LaunchTarget.Destination.DECRYPT
+                        }
+
+                        else -> {
+                            if (viaEncryptAlias) {
+                                LaunchTarget.Destination.ENCRYPT
+                            } else if (viaDecryptAlias) {
+                                LaunchTarget.Destination.DECRYPT
+                            } else {
+                                LaunchTarget.Destination.HOME
+                            }
+                        }
+                    }
                 LaunchTarget(dest)
             }
         }

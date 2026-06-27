@@ -17,7 +17,9 @@ import dev.mage.age.store.ThemeMode
  * instance lives on the app container so the activity (which applies the theme) and the Settings
  * screen (which edits it) share the same state.
  */
-class ThemeController(private val settings: SettingsStore) {
+class ThemeController(
+    private val settings: SettingsStore,
+) {
     // Compose-state backing fields; the public properties read these (so reads are observed for
     // recomposition) and persist through to settings on write.
     private var themeModeState by mutableStateOf(settings.themeMode)

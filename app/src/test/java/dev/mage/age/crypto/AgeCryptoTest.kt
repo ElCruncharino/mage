@@ -17,7 +17,6 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 class AgeCryptoTest {
-
     private val message = "the quick brown fox jumps over the lazy dog\n".toByteArray()
 
     @Test
@@ -81,11 +80,12 @@ class AgeCryptoTest {
 
     @Test
     fun passphrase_wrongPassphrase_fails() {
-        val ct = AgeCrypto.encryptBytes(
-            listOf(Passphrase.recipient("hunter2".toCharArray())),
-            message,
-            armor = false,
-        )
+        val ct =
+            AgeCrypto.encryptBytes(
+                listOf(Passphrase.recipient("hunter2".toCharArray())),
+                message,
+                armor = false,
+            )
         try {
             AgeCrypto.decryptBytes(listOf(Passphrase.identity("nope".toCharArray())), ct)
             fail("expected wrong passphrase to throw")

@@ -28,9 +28,13 @@ import javax.crypto.spec.GCMParameterSpec
  *
  * NOTE: requires on-device testing — Keystore auth-bound keys cannot be exercised on a host JVM.
  */
-class KeystoreVault(private val appContext: Context) {
-
-    data class Sealed(val iv: ByteArray, val ciphertext: ByteArray)
+class KeystoreVault(
+    private val appContext: Context,
+) {
+    data class Sealed(
+        val iv: ByteArray,
+        val ciphertext: ByteArray,
+    )
 
     fun hasKey(): Boolean = keyStore().containsAlias(KEY_ALIAS)
 
@@ -63,33 +67,36 @@ class KeystoreVault(private val appContext: Context) {
         return cipher.doFinal(sealed.ciphertext)
     }
 
-    private fun generate(biometricLock: Boolean, strongBox: Boolean) {
+    private fun generate(
+        biometricLock: Boolean,
+        strongBox: Boolean,
+    ) {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
-        val spec = KeyGenParameterSpec.Builder(
-            KEY_ALIAS,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .apply {
-                if (biometricLock) {
-                    setUserAuthenticationRequired(true)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        setUserAuthenticationParameters(
-                            AUTH_VALIDITY_SECONDS,
-                            KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL,
-                        )
-                    } else {
-                        @Suppress("DEPRECATION")
-                        setUserAuthenticationValidityDurationSeconds(AUTH_VALIDITY_SECONDS)
+        val spec =
+            KeyGenParameterSpec
+                .Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .apply {
+                    if (biometricLock) {
+                        setUserAuthenticationRequired(true)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            setUserAuthenticationParameters(
+                                AUTH_VALIDITY_SECONDS,
+                                KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL,
+                            )
+                        } else {
+                            @Suppress("DEPRECATION")
+                            setUserAuthenticationValidityDurationSeconds(AUTH_VALIDITY_SECONDS)
+                        }
                     }
-                }
-                if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    setIsStrongBoxBacked(true)
-                }
-            }
-            .build()
+                    if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        setIsStrongBoxBacked(true)
+                    }
+                }.build()
 
         try {
             generator.init(spec)
@@ -108,11 +115,9 @@ class KeystoreVault(private val appContext: Context) {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
             appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
 
-    private fun secretKey(): SecretKey =
-        (keyStore().getEntry(KEY_ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
+    private fun secretKey(): SecretKey = (keyStore().getEntry(KEY_ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
 
-    private fun keyStore(): KeyStore =
-        KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+    private fun keyStore(): KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"

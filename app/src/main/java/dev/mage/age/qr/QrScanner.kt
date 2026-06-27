@@ -51,7 +51,10 @@ import java.util.concurrent.Executors
  * would jank the preview); [onResult] fires exactly once for the first decoded code. Fully offline.
  */
 @Composable
-fun QrScanner(onResult: (String) -> Unit, onClose: () -> Unit) {
+fun QrScanner(
+    onResult: (String) -> Unit,
+    onClose: () -> Unit,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -61,9 +64,10 @@ fun QrScanner(onResult: (String) -> Unit, onClose: () -> Unit) {
                 PackageManager.PERMISSION_GRANTED,
         )
     }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted = it }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted = it }
 
     LaunchedEffect(Unit) {
         if (!granted) permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -78,13 +82,16 @@ fun QrScanner(onResult: (String) -> Unit, onClose: () -> Unit) {
             val future = ProcessCameraProvider.getInstance(context)
             future.addListener({
                 provider = future.get()
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                    .also { it.setAnalyzer(executor, QrAnalyzer(onResult)) }
+                val preview =
+                    Preview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
+                val analysis =
+                    ImageAnalysis
+                        .Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+                        .also { it.setAnalyzer(executor, QrAnalyzer(onResult)) }
                 runCatching {
                     provider?.unbindAll()
                     provider?.bindToLifecycle(
@@ -130,11 +137,13 @@ fun QrScanner(onResult: (String) -> Unit, onClose: () -> Unit) {
 }
 
 /** ZXing analyzer that decodes the luminance plane of each frame, reporting the first QR found. */
-private class QrAnalyzer(private val onDecoded: (String) -> Unit) : ImageAnalysis.Analyzer {
-
-    private val reader = MultiFormatReader().apply {
-        setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE)))
-    }
+private class QrAnalyzer(
+    private val onDecoded: (String) -> Unit,
+) : ImageAnalysis.Analyzer {
+    private val reader =
+        MultiFormatReader().apply {
+            setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE)))
+        }
 
     @Volatile private var done = false
 
@@ -148,16 +157,17 @@ private class QrAnalyzer(private val onDecoded: (String) -> Unit) : ImageAnalysi
             val buffer = plane.buffer
             val data = ByteArray(buffer.remaining())
             buffer.get(data)
-            val source = PlanarYUVLuminanceSource(
-                data,
-                plane.rowStride,
-                image.height,
-                0,
-                0,
-                image.width,
-                image.height,
-                false,
-            )
+            val source =
+                PlanarYUVLuminanceSource(
+                    data,
+                    plane.rowStride,
+                    image.height,
+                    0,
+                    0,
+                    image.width,
+                    image.height,
+                    false,
+                )
             val result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
             if (!done) {
                 done = true

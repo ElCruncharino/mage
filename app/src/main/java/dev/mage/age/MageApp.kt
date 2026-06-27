@@ -32,7 +32,9 @@ class MageApp : Application() {
 }
 
 /** Holds the singletons used across the app. */
-class AppContainer(app: Application) {
+class AppContainer(
+    app: Application,
+) {
     private val appContext = app.applicationContext
     val settings = SettingsStore(app)
     val vault = KeystoreVault(app)

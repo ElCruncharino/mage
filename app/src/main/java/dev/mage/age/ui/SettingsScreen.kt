@@ -153,11 +153,11 @@ fun SettingsScreen(
             SegmentedButtonGroup(
                 options = listOf("System", "Light", "Dark"),
                 selectedIndex =
-                when (theme.themeMode) {
-                    ThemeMode.SYSTEM -> 0
-                    ThemeMode.LIGHT -> 1
-                    ThemeMode.DARK -> 2
-                },
+                    when (theme.themeMode) {
+                        ThemeMode.SYSTEM -> 0
+                        ThemeMode.LIGHT -> 1
+                        ThemeMode.DARK -> 2
+                    },
                 onSelect = {
                     theme.themeMode =
                         when (it) {
@@ -176,9 +176,9 @@ fun SettingsScreen(
                     enabled = dynamicSupported && theme.accentSeed == null,
                     onCheckedChange = { theme.dynamicColor = it },
                     modifier =
-                    Modifier.semantics {
-                        stateDescription = if (theme.dynamicColor) "On" else "Off"
-                    },
+                        Modifier.semantics {
+                            stateDescription = if (theme.dynamicColor) "On" else "Off"
+                        },
                 )
                 Column {
                     Text("Material You colours")
@@ -228,9 +228,9 @@ fun SettingsScreen(
                         }
                     },
                     modifier =
-                    Modifier.semantics {
-                        stateDescription = if (biometricLock) "On" else "Off"
-                    },
+                        Modifier.semantics {
+                            stateDescription = if (biometricLock) "On" else "Off"
+                        },
                 )
                 Column {
                     Text("Biometric lock")
@@ -256,9 +256,9 @@ fun SettingsScreen(
                         container.settings.defaultArmor = it
                     },
                     modifier =
-                    Modifier.semantics {
-                        stateDescription = if (defaultArmor) "On" else "Off"
-                    },
+                        Modifier.semantics {
+                            stateDescription = if (defaultArmor) "On" else "Off"
+                        },
                 )
                 Column {
                     Text("ASCII armor by default")
@@ -403,30 +403,30 @@ private fun AccentSwatch(
 ) {
     Box(
         modifier =
-        Modifier
-            .size(48.dp)
-            .clickable(onClick = onClick)
-            .semantics {
-                contentDescription = "$label accent colour"
-                stateDescription = if (selected) "Selected" else "Not selected"
-            },
+            Modifier
+                .size(48.dp)
+                .clickable(onClick = onClick)
+                .semantics {
+                    contentDescription = "$label accent colour"
+                    stateDescription = if (selected) "Selected" else "Not selected"
+                },
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier =
-            Modifier
-                .size(36.dp)
-                .background(color, CircleShape)
-                .border(
-                    width = if (selected) 3.dp else 1.dp,
-                    color =
-                    if (selected) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
-                    },
-                    shape = CircleShape,
-                ),
+                Modifier
+                    .size(36.dp)
+                    .background(color, CircleShape)
+                    .border(
+                        width = if (selected) 3.dp else 1.dp,
+                        color =
+                            if (selected) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                        shape = CircleShape,
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             if (selected) {
@@ -483,11 +483,13 @@ private fun ExportPassphraseDialog(
                         confirm?.let { Arrays.fill(it, ' ') }
                         error = "Enter a passphrase"
                     }
+
                     confirm == null || !pass.contentEquals(confirm) -> {
                         Arrays.fill(pass, ' ')
                         confirm?.let { Arrays.fill(it, ' ') }
                         error = "Passphrases do not match"
                     }
+
                     else -> {
                         Arrays.fill(confirm, ' ')
                         onConfirm(pass, armor)
