@@ -1,0 +1,92 @@
+name: Release
+
+# Build a signed release APK and attach it to a GitHub Release. Push a tag like v0.1.0 to cut a
+# release; or run manually (workflow_dispatch) to test the build without publishing. Obtainium
+# tracks this repo's Releases directly — no extra config needed beyond the APK being there.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: Build signed APK
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check for signing key
+        id: signing
+        shell: bash
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret set; skipping APK (an unsigned APK cannot be installed)."
+          fi
+
+      - name: Materialize keystore
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SP: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KA: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KP: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/mage-release.jks
+          printf 'storeFile=mage-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$SP" "$KA" "$KP" > app/keystore.properties
+
+      - name: Build signed APK
+        if: steps.signing.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          version="${GITHUB_REF_NAME#v}"
+          [ "$GITHUB_REF_TYPE" = "tag" ] || version="dev"
+          cp "$apk" "Mage-${version}.apk"
+
+      - name: Upload APK
+        if: steps.signing.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mage-apk
+          path: Mage-*.apk
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [apk]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: mage-apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Mage ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: Mage-*.apk
