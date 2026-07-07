@@ -55,7 +55,15 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Labeled share-sheet target: decrypt a shared .age file. -->
+        <!--
+             Labeled share-sheet target: decrypt a shared .age file. age has no registered MIME
+             type, so senders can't tag it precisely; unrecognized extensions almost universally
+             resolve to "application/octet-stream" instead (unlike photos, video, audio, pdf, zip,
+             apk, etc., which all have a specific registered type), so filtering on that keeps this
+             target off the share sheet for ordinary files without requiring an exact match. It's a
+             best-effort filter, not the enforcement boundary — SafIO.isAgeName does the real check
+             once a file is actually picked.
+        -->
         <activity-alias
             android:name=".ShareDecrypt"
             android:targetActivity=".MainActivity"
@@ -64,7 +72,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
             <!-- Also offer to open .age files directly from a file manager. -->
             <intent-filter>
