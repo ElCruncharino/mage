@@ -1,0 +1,3 @@
+[submodule "kage"]
+	path = kage
+	url = https://github.com/android-password-store/kage.git
