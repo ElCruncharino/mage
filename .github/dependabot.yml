@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # App dependencies (AndroidX/Compose, camera, zxing, spotless/ktlint, test libs). kage itself is
+  # a git submodule, not a Gradle dependency, so it isn't covered here — see its own upstream repo.
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Keep the CI/release GitHub Actions current (checkout, setup-java, setup-android, setup-gradle,
+  # upload/download-artifact, gh-release).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
