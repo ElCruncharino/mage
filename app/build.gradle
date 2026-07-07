@@ -84,7 +84,7 @@ dependencies {
     // coordinate is satisfied by the kage submodule's composite build (see settings.gradle includeBuild).
     implementation 'com.github.android-password-store:kage'
 
-    def composeBom = platform('androidx.compose:compose-bom:2026.06.00')
+    def composeBom = platform('androidx.compose:compose-bom:2026.06.01')
     implementation composeBom
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
