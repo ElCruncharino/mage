@@ -33,8 +33,9 @@ Releases are signed and built by CI directly from a tagged commit (see
 
 ## Status
 
-Early — version 0.1.0, no signed releases yet. Built and tested against real kage on a
-JVM harness plus device testing; not independently audited. Treat it accordingly.
+Early — [v0.1.0](https://github.com/ElCruncharino/mage/releases/tag/v0.1.0), the first
+signed release. Built and tested against real kage on a JVM harness plus device testing;
+not independently audited. Treat it accordingly.
 
 ## Building
 
