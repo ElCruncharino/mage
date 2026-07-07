@@ -81,7 +81,7 @@ repositories {
 
 dependencies {
     // The age implementation. Mage is a GUI on top of it. Version is intentionally omitted: the
-    // coordinate is satisfied by the ../kage composite build (see settings.gradle includeBuild).
+    // coordinate is satisfied by the kage submodule's composite build (see settings.gradle includeBuild).
     implementation 'com.github.android-password-store:kage'
 
     def composeBom = platform('androidx.compose:compose-bom:2026.06.00')
