@@ -5,6 +5,7 @@
 
 package dev.mage.age.ui
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,8 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
 import dev.mage.age.crypto.Recipients
@@ -42,7 +43,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun RecipientsScreen(container: AppContainer) {
     val scope = rememberCoroutineScope()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
 
     var recipients by remember { mutableStateOf<List<SavedRecipient>>(emptyList()) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
@@ -106,8 +107,10 @@ fun RecipientsScreen(container: AppContainer) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { qrFor = recipient }) { Text("Show QR") }
                     OutlinedButton(onClick = {
-                        clipboard.setText(AnnotatedString(recipient.recipient))
-                        status = OpStatus.Success("Copied")
+                        scope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("recipient", recipient.recipient)))
+                            status = OpStatus.Success("Copied")
+                        }
                     }) { Text("Copy") }
                     TextButton(onClick = {
                         scope.launch {
