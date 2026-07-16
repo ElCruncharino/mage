@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,7 +87,7 @@ fun SettingsScreen(
 
     var biometricLock by remember { mutableStateOf(container.settings.biometricLock) }
     var defaultArmor by remember { mutableStateOf(container.settings.defaultArmor) }
-    var identityCount by remember { mutableStateOf(0) }
+    var identityCount by remember { mutableIntStateOf(0) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
     var confirmReset by remember { mutableStateOf(false) }
 
