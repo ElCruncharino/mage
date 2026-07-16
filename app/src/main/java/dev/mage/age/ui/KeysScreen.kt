@@ -7,8 +7,8 @@ package dev.mage.age.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,7 +29,7 @@ fun KeysScreen(
 
     Column(Modifier.fillMaxSize()) {
         // Transparent track so the gradient backdrop shows through the tab bar.
-        TabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
+        PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Identities") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Recipients") })
         }

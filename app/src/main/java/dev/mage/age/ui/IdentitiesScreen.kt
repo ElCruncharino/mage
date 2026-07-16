@@ -7,6 +7,7 @@
 
 package dev.mage.age.ui
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -31,8 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
 import dev.mage.age.store.VaultIdentity
@@ -48,7 +49,7 @@ fun IdentitiesScreen(
     unlock: suspend () -> Boolean,
 ) {
     val scope = rememberCoroutineScope()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
 
     var identities by remember { mutableStateOf<List<VaultIdentity>>(emptyList()) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
@@ -94,8 +95,10 @@ fun IdentitiesScreen(
                     OutlinedButton(onClick = { qrFor = identity }) { Text("Show QR") }
 
                     OutlinedButton(onClick = {
-                        clipboard.setText(AnnotatedString(identity.recipient))
-                        status = OpStatus.Success("Public key copied")
+                        scope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("age recipient", identity.recipient)))
+                            status = OpStatus.Success("Public key copied")
+                        }
                     }) { Text("Copy public") }
 
                     OutlinedButton(onClick = {
@@ -193,9 +196,11 @@ fun IdentitiesScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    clipboard.setText(AnnotatedString(key))
-                    reveal = null
-                    status = OpStatus.Success("Private key copied — handle with care")
+                    scope.launch {
+                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("age identity", key)))
+                        reveal = null
+                        status = OpStatus.Success("Private key copied — handle with care")
+                    }
                 }) { Text("Copy") }
             },
             dismissButton = { TextButton(onClick = { reveal = null }) { Text("Close") } },
