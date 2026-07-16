@@ -1,0 +1,13 @@
+Mage is an Android GUI for age file encryption, built on kage (a Kotlin/JVM implementation of the age protocol). "Mage" is short for Mobile age. Mage is not officially affiliated with or endorsed by the age project.
+
+Encrypt or decrypt files to age recipients or passphrases, including armor, multi-recipient, and encrypt-to-self. SSH keys (ssh-ed25519, ssh-rsa) work as recipients and identities alongside native age keys, and can be mixed on one file.
+
+Identities are sealed in the Android Keystore (AES-256-GCM, StrongBox where available) behind biometric or device-credential authentication. Recipients get a small address book with QR encode/scan for sharing a public key.
+
+Batch mode encrypts or decrypts more than one file at a time into a folder. Your identity vault can be exported and re-imported as an encrypted backup, so it isn't stuck on one device.
+
+Mage hooks into the system where it makes sense: share-sheet targets, a .age file-manager association, launcher shortcuts, and a Quick Settings tile.
+
+Mage does not implement its own cryptography — that is kage's job. It is not a general-purpose file manager or password manager, and it does not support the age-plugin mechanism, which relies on binaries on $PATH and does not work on Android.
+
+Mage requests no network permission and makes no network connections.
