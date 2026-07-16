@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,7 +64,7 @@ fun DecryptScreen(
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
     var inputUris by remember { mutableStateOf(pending.uris) }
     var inputLabel by remember { mutableStateOf<String?>(null) }
-    var identityCount by remember { mutableStateOf(0) }
+    var identityCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         identityCount = withContext(Dispatchers.IO) { container.identities.list().size }

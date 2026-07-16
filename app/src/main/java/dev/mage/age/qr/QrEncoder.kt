@@ -7,6 +7,7 @@ package dev.mage.age.qr
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import androidx.core.graphics.createBitmap
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -35,7 +36,7 @@ object QrEncoder {
                 pixels[offset + x] = if (matrix.get(x, y)) Color.BLACK else Color.WHITE
             }
         }
-        return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply {
+        return createBitmap(w, h).apply {
             setPixels(pixels, 0, w, 0, 0, w, h)
         }
     }
