@@ -34,7 +34,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -75,6 +78,9 @@ fun MageRoot(
     val pending = remember { PendingInput(initialTarget.fileUris) }
     var showAbout by remember { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    // innerPadding under-reserves space for this floating bar in practice; measure it directly.
+    var navBarHeight by remember { mutableStateOf(0.dp) }
 
     val start =
         when (initialTarget.destination) {
@@ -134,6 +140,10 @@ fun MageRoot(
                             },
                         )
                     },
+                modifier =
+                    Modifier.onGloballyPositioned {
+                        navBarHeight = with(density) { it.size.height.toDp() }
+                    },
             )
         },
     ) { innerPadding ->
@@ -141,7 +151,10 @@ fun MageRoot(
             NavHost(
                 navController = navController,
                 startDestination = start.route,
-                modifier = Modifier.padding(innerPadding),
+                modifier =
+                    Modifier
+                        .padding(innerPadding)
+                        .padding(bottom = (navBarHeight - innerPadding.calculateBottomPadding()).coerceAtLeast(0.dp)),
             ) {
                 composable(Dest.ENCRYPT.route) {
                     EncryptScreen(container = container, pending = pending, unlock = unlock)
