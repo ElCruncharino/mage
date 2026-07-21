@@ -5,6 +5,7 @@
 
 package dev.mage.age.store
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
 import androidx.biometric.BiometricManager
@@ -24,20 +25,29 @@ import kotlin.coroutines.resume
  * NOTE: requires on-device testing.
  */
 object BiometricGate {
-    /** Authenticators we request: combine biometric + device credential where the platform allows. */
-    private fun authenticators(): Int =
+    // Pre-R can't combine DEVICE_CREDENTIAL with a biometric class in one call, so pick a single type:
+    // BIOMETRIC_WEAK (not STRONG, which many real fingerprint sensors don't certify as) if enrolled,
+    // else DEVICE_CREDENTIAL alone.
+    private fun authenticators(context: Context): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL
+        } else if (BiometricManager.from(context).canAuthenticate(Authenticators.BIOMETRIC_WEAK) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+        ) {
+            Authenticators.BIOMETRIC_WEAK
         } else {
-            // Pre-R cannot combine DEVICE_CREDENTIAL with BIOMETRIC_STRONG in BiometricPrompt; use
-            // strong biometric and rely on a negative button for fallback.
-            Authenticators.BIOMETRIC_STRONG
+            Authenticators.DEVICE_CREDENTIAL
         }
 
-    /** Whether the device can satisfy our auth requirement right now. */
-    fun status(context: Context): Int = BiometricManager.from(context).canAuthenticate(authenticators())
+    private fun deviceSecurePreR(context: Context): Boolean =
+        (context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isDeviceSecure == true
 
-    fun canAuthenticate(context: Context): Boolean = status(context) == BiometricManager.BIOMETRIC_SUCCESS
+    /** Whether the device can satisfy our auth requirement right now. */
+    fun status(context: Context): Int = BiometricManager.from(context).canAuthenticate(authenticators(context))
+
+    fun canAuthenticate(context: Context): Boolean =
+        status(context) == BiometricManager.BIOMETRIC_SUCCESS ||
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.R && deviceSecurePreR(context))
 
     /**
      * Show the prompt and suspend until the user succeeds, cancels, or it errors.
@@ -68,16 +78,18 @@ object BiometricGate {
                     // Single failed attempt: let the prompt continue; only terminal error/cancel resumes.
                 }
 
+            val allowed = authenticators(activity)
             val prompt = BiometricPrompt(activity, executor, callback)
             val infoBuilder =
                 BiometricPrompt.PromptInfo
                     .Builder()
                     .setTitle(title)
                     .setSubtitle(subtitle)
-                    .setAllowedAuthenticators(authenticators())
+                    .setAllowedAuthenticators(allowed)
 
-            // When DEVICE_CREDENTIAL is not in the allowed set, a negative button is mandatory.
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            // A negative button is mandatory when DEVICE_CREDENTIAL is not in the allowed set, and
+            // forbidden (throws) when it is.
+            if (allowed and Authenticators.DEVICE_CREDENTIAL == 0) {
                 infoBuilder.setNegativeButtonText("Cancel")
             }
 
