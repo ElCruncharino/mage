@@ -11,6 +11,7 @@ import dev.mage.age.crypto.Identities
 import kage.crypto.x25519.X25519Identity
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Arrays
 import java.util.UUID
 
 /**
@@ -73,7 +74,12 @@ class IdentityStore(
     /** Decrypt and reconstruct the private identity. Requires a valid auth window. */
     fun open(record: VaultIdentity): X25519Identity {
         val bytes = vault.open(KeystoreVault.Sealed(unb64(record.sealedIvB64), unb64(record.sealedCtB64)))
-        return Identities.parseIdentity(String(bytes, Charsets.US_ASCII))
+        // kage only parses from a String (immutable, unwipeable); wipe the decrypted bytes once it has.
+        return try {
+            Identities.parseIdentity(String(bytes, Charsets.US_ASCII))
+        } finally {
+            Arrays.fill(bytes, 0)
+        }
     }
 
     private fun records(arr: JSONArray): List<VaultIdentity> = (0 until arr.length()).map { fromJson(arr.getJSONObject(it)) }
