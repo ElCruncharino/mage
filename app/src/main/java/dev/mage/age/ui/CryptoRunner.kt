@@ -24,6 +24,13 @@ import java.io.FileOutputStream
  * streams in and out. Everything runs on [Dispatchers.IO]; streaming keeps memory flat for big files.
  */
 object CryptoRunner {
+    /**
+     * Encrypt [input] to [output]. Runs through a private cache file rather than streaming straight
+     * into the SAF destination (see [encryptToFile] / [copyFileToUri]) — some content providers have
+     * been observed silently dropping bytes written directly to a `content://` OutputStream, so the
+     * encrypt itself only ever touches ordinary local storage and the SAF destination just receives a
+     * plain byte copy.
+     */
     suspend fun encryptToUri(
         context: Context,
         recipients: List<Recipient>,
@@ -31,8 +38,25 @@ object CryptoRunner {
         output: Uri,
         armor: Boolean,
     ) = withContext(Dispatchers.IO) {
+        val temp = File.createTempFile("mage-enc", ".tmp", context.cacheDir)
+        try {
+            encryptToFile(context, recipients, input, temp, armor)
+            copyFileToUri(context, temp, output)
+        } finally {
+            temp.delete()
+        }
+    }
+
+    /** Encrypt [input] into a private cache [dest] file. See [encryptToUri] / [decryptToFile]. */
+    suspend fun encryptToFile(
+        context: Context,
+        recipients: List<Recipient>,
+        input: Uri,
+        dest: File,
+        armor: Boolean,
+    ) = withContext(Dispatchers.IO) {
         SafIO.openInput(context, input).use { src ->
-            SafIO.openOutput(context, output).use { dst ->
+            FileOutputStream(dest).use { dst ->
                 AgeCrypto.encrypt(recipients, src, dst, armor)
             }
         }
@@ -71,7 +95,7 @@ object CryptoRunner {
         }
     }
 
-    /** Copy an already-decrypted local [file] out to the user-picked [output] location. */
+    /** Copy an already-encrypted/decrypted local [file] out to the user-picked [output] location. */
     suspend fun copyFileToUri(
         context: Context,
         file: File,
@@ -81,6 +105,13 @@ object CryptoRunner {
             SafIO.openOutput(context, output).use { dst ->
                 src.copyTo(dst)
             }
+        }
+        val doc = DocumentFile.fromSingleUri(context, output)
+        if (doc?.length() == 0L && file.length() != 0L) {
+            // The destination silently dropped the write; a genuinely empty result here would mean
+            // the (already-validated, non-empty) local file failed to copy, not that it was empty.
+            doc.delete()
+            error("The destination wrote an empty file — this storage location may not support the write")
         }
     }
 
@@ -134,6 +165,7 @@ object CryptoRunner {
                             AgeCrypto.encrypt(recipients, src, dst, armor)
                         }
                     }
+                    if (child.length() == 0L) error("Encryption produced an empty file")
                 } catch (t: Throwable) {
                     child.delete() // don't leave a partial/empty file behind on failure
                     throw t
