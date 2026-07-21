@@ -329,6 +329,7 @@ private fun decryptError(t: Throwable): String {
         return "Not enough memory to decrypt this file on this device — it's too large for the " +
             "age library, which loads the whole file into memory."
     }
+    vaultInvalidatedMessage(t)?.let { return it }
     val name = t::class.simpleName ?: "Error"
     return when {
         name.contains("UserNotAuthenticated") -> {

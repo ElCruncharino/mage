@@ -112,7 +112,9 @@ fun IdentitiesScreen(
                                     reveal = identity.label to
                                         dev.mage.age.crypto.Identities
                                             .encode(it)
-                                }.onFailure { status = OpStatus.Error("Could not unlock: ${it.message ?: it}") }
+                                }.onFailure {
+                                    status = OpStatus.Error(vaultInvalidatedMessage(it) ?: "Could not unlock: ${it.message ?: it}")
+                                }
                         }
                     }) { Text("Reveal private") }
 
@@ -150,7 +152,9 @@ fun IdentitiesScreen(
                     }.onSuccess {
                         reload()
                         status = OpStatus.Success("Identity created")
-                    }.onFailure { status = OpStatus.Error("Failed: ${it.message ?: it}") }
+                    }.onFailure {
+                        status = OpStatus.Error(vaultInvalidatedMessage(it) ?: "Failed: ${it.message ?: it}")
+                    }
                 }
             },
         )
@@ -174,7 +178,9 @@ fun IdentitiesScreen(
                     }.onSuccess {
                         reload()
                         status = OpStatus.Success("Identity imported")
-                    }.onFailure { status = OpStatus.Error("Not a valid identity key") }
+                    }.onFailure {
+                        status = OpStatus.Error(vaultInvalidatedMessage(it) ?: "Not a valid identity key")
+                    }
                 }
             },
         )

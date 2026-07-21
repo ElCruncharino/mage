@@ -90,6 +90,10 @@ fun SettingsScreen(
     var identityCount by remember { mutableIntStateOf(0) }
     var status by remember { mutableStateOf<OpStatus>(OpStatus.Idle) }
     var confirmReset by remember { mutableStateOf(false) }
+    // True when the vault key was invalidated by a biometric-enrollment change: seal/open fail forever
+    // until the key is regenerated, so we surface a dedicated reset affordance below.
+    var vaultInvalidated by remember { mutableStateOf(false) }
+    var confirmKeyReset by remember { mutableStateOf(false) }
 
     // Backup / restore state. The export passphrase is held as a wipeable char[] from the moment the
     // dialog confirms until the backup file has been written, then zeroed.
@@ -102,7 +106,10 @@ fun SettingsScreen(
     suspend fun refreshCount() {
         identityCount = withContext(Dispatchers.IO) { container.identities.list().size }
     }
-    LaunchedEffect(Unit) { refreshCount() }
+    LaunchedEffect(Unit) {
+        refreshCount()
+        vaultInvalidated = withContext(Dispatchers.IO) { container.vault.isInvalidated() }
+    }
 
     val saveBackup =
         rememberLauncherForActivityResult(
@@ -123,11 +130,14 @@ fun SettingsScreen(
                         onSuccess = { OpStatus.Success("Backed up $identityCount identities") },
                         onFailure = {
                             val name = it::class.simpleName ?: "Error"
-                            if (name.contains("UserNotAuthenticated")) {
-                                OpStatus.Error("Vault lock expired — try again")
-                            } else {
-                                OpStatus.Error("Backup failed: ${it.message ?: name}")
-                            }
+                            OpStatus.Error(
+                                vaultInvalidatedMessage(it)
+                                    ?: if (name.contains("UserNotAuthenticated")) {
+                                        "Vault lock expired — try again"
+                                    } else {
+                                        "Backup failed: ${it.message ?: name}"
+                                    },
+                            )
                         },
                     )
                 Arrays.fill(pass, ' ')
@@ -211,6 +221,21 @@ fun SettingsScreen(
                 enabled = theme.accentSeed != null,
                 onClick = { theme.accentSeed = null },
             ) { Text("Use default colours") }
+        }
+
+        if (vaultInvalidated) {
+            SectionCard("Vault key locked out") {
+                Text(
+                    "This device's biometric enrollment changed, so Android invalidated the key that " +
+                        "protects your saved identities. This is a security measure and can't be undone. " +
+                        "To use Mage again you must reset the vault key. That discards the identities " +
+                        "sealed under the old key on this device — restore them afterward from a backup " +
+                        "if you have one.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(onClick = { confirmKeyReset = true }) { Text("Reset vault key") }
+            }
         }
 
         SectionCard("Security") {
@@ -337,6 +362,37 @@ fun SettingsScreen(
         )
     }
 
+    if (confirmKeyReset) {
+        AlertDialog(
+            onDismissRequest = { confirmKeyReset = false },
+            title = { Text("Reset vault key?") },
+            text = {
+                Text(
+                    "This generates a fresh vault key and removes the identities sealed under the " +
+                        "invalidated one — Android already made those unrecoverable. Any identity you did " +
+                        "not back up externally is lost for good. If you have a backup, restore it after " +
+                        "resetting. This cannot be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmKeyReset = false
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            container.identities.list().forEach { container.identities.delete(it.id) }
+                            container.vault.deleteKey()
+                            container.ensureVaultKey()
+                        }
+                        vaultInvalidated = false
+                        refreshCount()
+                        status = OpStatus.Success("Vault key reset — restore from a backup to bring identities back")
+                    }
+                }) { Text("Reset key") }
+            },
+            dismissButton = { TextButton(onClick = { confirmKeyReset = false }) { Text("Cancel") } },
+        )
+    }
+
     if (showExportPass) {
         ExportPassphraseDialog(
             onDismiss = { showExportPass = false },
@@ -384,7 +440,9 @@ fun SettingsScreen(
                                 onSuccess = {
                                     OpStatus.Success("Imported ${it.imported}, skipped ${it.skipped}")
                                 },
-                                onFailure = { OpStatus.Error("Wrong passphrase or invalid backup") },
+                                onFailure = {
+                                    OpStatus.Error(vaultInvalidatedMessage(it) ?: "Wrong passphrase or invalid backup")
+                                },
                             )
                         refreshCount()
                     }
