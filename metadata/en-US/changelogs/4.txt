@@ -1,0 +1,5 @@
+Fixes the floating nav bar covering bottom controls on some screens,
+improves biometric unlock support on older or budget devices, and adds
+a recovery path if a biometric change invalidates the vault key.
+Encryption is now more reliable on non-standard storage backends, and
+copied private keys are hidden from clipboard history.
