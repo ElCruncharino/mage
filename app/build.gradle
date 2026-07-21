@@ -13,7 +13,7 @@ plugins {
     // deliberately not applied — it is incompatible with AGP 9's extension model.
     id 'com.android.application' version '9.2.1'
     // The Compose compiler plugin version must match built-in Kotlin exactly.
-    id 'org.jetbrains.kotlin.plugin.compose' version '2.4.0'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.4.10'
 }
 
 android {
