@@ -8,6 +8,9 @@
 package dev.mage.age.ui
 
 import android.content.ClipData
+import android.content.ClipDescription
+import android.os.Build
+import android.os.PersistableBundle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -203,7 +206,15 @@ fun IdentitiesScreen(
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
-                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("age identity", key)))
+                        val clip = ClipData.newPlainText("age identity", key)
+                        // Redact from the system clipboard preview/history on Android 13+ (no-op earlier).
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            clip.description.extras =
+                                PersistableBundle().apply {
+                                    putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+                                }
+                        }
+                        clipboard.setClipEntry(ClipEntry(clip))
                         reveal = null
                         status = OpStatus.Success("Private key copied — handle with care")
                     }
