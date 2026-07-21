@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -51,6 +52,25 @@ class KeystoreVault(
 
     fun deleteKey() {
         runCatching { keyStore().deleteEntry(KEY_ALIAS) }
+    }
+
+    /**
+     * Best-effort check that the key exists but is permanently invalidated (Android does this when the
+     * device's enrolled biometrics change). A throwaway ENCRYPT init fails fast: a
+     * [KeyPermanentlyInvalidatedException] means the key must be regenerated, while
+     * UserNotAuthenticated or success both mean the key is fine (just locked). No plaintext is
+     * touched, so this needs no auth window.
+     */
+    fun isInvalidated(): Boolean {
+        if (!hasKey()) return false
+        return try {
+            Cipher.getInstance(TRANSFORMATION).init(Cipher.ENCRYPT_MODE, secretKey())
+            false
+        } catch (_: KeyPermanentlyInvalidatedException) {
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun seal(plaintext: ByteArray): Sealed {
@@ -120,6 +140,15 @@ class KeystoreVault(
     private fun keyStore(): KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
     companion object {
+        /**
+         * True when [t] (or a cause in its chain) is the Keystore reporting that the master key was
+         * permanently invalidated by a biometric-enrollment change. Every [seal]/[open] throws this
+         * until the key is deleted and regenerated, so callers use it to give an honest, actionable
+         * message and offer a reset rather than a generic failure.
+         */
+        fun isKeyInvalidated(t: Throwable): Boolean =
+            generateSequence(t) { it.cause }.any { it is KeyPermanentlyInvalidatedException }
+
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "mage.vault.master"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"

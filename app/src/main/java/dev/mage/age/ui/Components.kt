@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.mage.age.store.KeystoreVault
 import dev.mage.age.ui.components.ExpressiveLoadingIndicator
 import dev.mage.age.ui.theme.StatusLevel
 import dev.mage.age.ui.theme.statusColors
@@ -116,6 +117,21 @@ fun StatusBanner(
         }
     }
 }
+
+/**
+ * Honest message for the "biometric enrollment changed, so the Keystore invalidated the vault key"
+ * failure, shared by every screen that seals or opens identities. Returns null for other failures so
+ * callers keep their own specific messages for those.
+ */
+internal fun vaultInvalidatedMessage(t: Throwable): String? =
+    if (KeystoreVault.isKeyInvalidated(t)) {
+        "This device's biometric enrollment changed, so Android permanently invalidated the key that " +
+            "protected your saved identities — a deliberate security measure. Those identities can't " +
+            "be recovered without a backup. Open Settings to reset the vault key, then restore from a " +
+            "backup if you have one."
+    } else {
+        null
+    }
 
 /**
  * Abbreviate a public key for compact display in chips and cards. age keys collapse to
