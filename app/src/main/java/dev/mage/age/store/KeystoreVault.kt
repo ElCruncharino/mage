@@ -146,8 +146,7 @@ class KeystoreVault(
          * until the key is deleted and regenerated, so callers use it to give an honest, actionable
          * message and offer a reset rather than a generic failure.
          */
-        fun isKeyInvalidated(t: Throwable): Boolean =
-            generateSequence(t) { it.cause }.any { it is KeyPermanentlyInvalidatedException }
+        fun isKeyInvalidated(t: Throwable): Boolean = generateSequence(t) { it.cause }.any { it is KeyPermanentlyInvalidatedException }
 
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "mage.vault.master"
