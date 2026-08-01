@@ -10,9 +10,11 @@ The minimum supported Android version is API 26.
 
 ## Download
 
-| Get it |
-| --- |
-| [`.apk`](https://github.com/ElCruncharino/mage/releases/latest) &nbsp;·&nbsp; or **[Obtainium](https://github.com/ImranR98/Obtainium)** for auto-updates: add an app with the URL `https://github.com/ElCruncharino/mage` |
+[<img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/refs/heads/main/badge_github.png" alt="Get it on GitHub" height="80">](https://github.com/ElCruncharino/mage/releases/latest)
+[<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/packages/dev.mage.age/)
+[<img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://github.com/ImranR98/Obtainium)
+
+For Obtainium, add an app with the URL `https://github.com/ElCruncharino/mage`.
 
 Releases are signed and built by CI directly from a tagged commit (see
 `.github/workflows/release.yml`) — nothing is hand-uploaded.
