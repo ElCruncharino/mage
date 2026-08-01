@@ -1,0 +1,2 @@
+Drops the network-state permission: it was pulled in by an unused
+part of the camera library and Mage never needed it.
