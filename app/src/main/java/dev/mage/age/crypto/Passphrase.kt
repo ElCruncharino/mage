@@ -9,6 +9,7 @@ import kage.crypto.scrypt.ScryptIdentity
 import kage.crypto.scrypt.ScryptRecipient
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
 import java.util.Arrays
 
 /**
@@ -57,6 +58,24 @@ object Passphrase {
 
     /** Build a passphrase identity for decryption. */
     fun identity(passphrase: CharArray): ScryptIdentity = ScryptIdentity(toUtf8(passphrase))
+
+    /**
+     * Number of words in a [generate]d passphrase. Matches upstream `age`'s `-p`/`--passphrase` prompt
+     * ("Enter passphrase (leave empty to autogenerate a secure one)"), which joins 10 words from the
+     * same BIP-39 English list with `-`.
+     */
+    const val GENERATED_WORD_COUNT: Int = 10
+
+    /**
+     * Autogenerate a secure passphrase the same way upstream `age` does: [GENERATED_WORD_COUNT] words
+     * drawn independently and uniformly at random from [Wordlist.words] (2048 entries, so each pick is
+     * exactly 11 bits of entropy), joined with `-`.
+     */
+    fun generate(): CharArray {
+        val random = SecureRandom()
+        val words = (1..GENERATED_WORD_COUNT).map { Wordlist.words[random.nextInt(Wordlist.SIZE)] }
+        return words.joinToString("-").toCharArray()
+    }
 
     /** Encode a char[] as UTF-8 bytes without leaking an intermediate String. */
     private fun toUtf8(chars: CharArray): ByteArray {
