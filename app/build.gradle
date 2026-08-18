@@ -115,7 +115,7 @@ dependencies {
     // (BiometricPrompt requires one), so depend on a modern fragment explicitly rather than relying
     // on biometric's older transitive one.
     implementation 'androidx.biometric:biometric:1.1.0'
-    implementation 'androidx.fragment:fragment-ktx:1.8.9'
+    implementation 'androidx.fragment:fragment-ktx:1.9.0'
 
     // QR: generate (zxing core) and scan (CameraX feeds frames to zxing). Fully offline — no Play
     // Services dependency, important for a privacy tool.
