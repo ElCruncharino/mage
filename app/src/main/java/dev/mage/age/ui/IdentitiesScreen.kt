@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
 import dev.mage.age.AppContainer
+import dev.mage.age.crypto.Recipients
 import dev.mage.age.store.VaultIdentity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -90,7 +91,7 @@ fun IdentitiesScreen(
 
         identities.forEach { identity ->
             SectionCard(identity.label) {
-                if (identity.recipient.startsWith("age1pq")) {
+                if (Recipients.kindOf(identity.recipient) == Recipients.Kind.PQ) {
                     Text(
                         "Post-quantum — can't be mixed with other recipients when encrypting",
                         style = MaterialTheme.typography.bodySmall,
