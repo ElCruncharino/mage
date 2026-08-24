@@ -33,9 +33,13 @@ object Recipients {
     fun canonical(text: String): String {
         val t = text.trim()
         return when (kindOf(t)) {
-            Kind.AGE -> X25519Recipient.decode(t).encodeToString()
+            Kind.AGE -> {
+                X25519Recipient.decode(t).encodeToString()
+            }
 
-            Kind.PQ -> MlKem768X25519Recipient.decode(t).encodeToString()
+            Kind.PQ -> {
+                MlKem768X25519Recipient.decode(t).encodeToString()
+            }
 
             Kind.SSH -> {
                 SshKey.parseRecipient(t)
