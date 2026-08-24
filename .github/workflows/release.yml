@@ -77,6 +77,15 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+
+      - name: Find this version's changelog
+        id: changelog
+        shell: bash
+        run: |
+          code=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle)
+          echo "path=metadata/en-US/changelogs/${code}.txt" >> "$GITHUB_OUTPUT"
+
       - name: Download APK
         uses: actions/download-artifact@v8
         with:
@@ -88,5 +97,8 @@ jobs:
           name: Mage ${{ github.ref_name }}
           draft: false
           prerelease: false
+          # softprops prepends body_path to the auto-generated notes below, so the release opens
+          # with what actually changed and keeps the dependency-bump list underneath.
+          body_path: ${{ steps.changelog.outputs.path }}
           generate_release_notes: true
           files: Mage-*.apk
