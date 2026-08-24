@@ -5,46 +5,45 @@
 
 package dev.mage.age.crypto
 
+import kage.Identity
+import kage.Recipient
+import kage.crypto.mlkem.MlKem768X25519Identity
+import kage.crypto.mlkem.MlKem768X25519Recipient
 import kage.crypto.x25519.X25519Identity
 import kage.crypto.x25519.X25519Recipient
 
-/**
- * X25519 identity/recipient helpers — generation, and parsing/encoding to and from age's textual
- * forms:
- *  - identity (private):  `AGE-SECRET-KEY-1...`
- *  - recipient (public):  `age1...`
- */
+// Identities are AGE-SECRET-KEY-1... (X25519) or AGE-SECRET-KEY-PQ-1... (post-quantum).
 object Identities {
-    /** Generate a fresh random X25519 identity (keypair). */
-    fun generate(): X25519Identity = X25519Identity.`new`()
+    fun generate(postQuantum: Boolean = false): Identity =
+        if (postQuantum) MlKem768X25519Identity.`new`() else X25519Identity.`new`()
 
-    /**
-     * Parse a private identity string (`AGE-SECRET-KEY-1...`). Whitespace is trimmed so pasted keys
-     * with stray newlines still parse.
-     *
-     * @throws kage.errors.InvalidIdentityException / [kage.errors.Bech32Exception] on bad input.
-     */
-    fun parseIdentity(text: String): X25519Identity = X25519Identity.decode(text.trim())
+    fun parseIdentity(text: String): Identity {
+        val t = text.trim()
+        return if (t.startsWith("AGE-SECRET-KEY-PQ-", ignoreCase = true)) {
+            MlKem768X25519Identity.decode(t)
+        } else {
+            X25519Identity.decode(t)
+        }
+    }
 
-    /**
-     * Parse a public recipient string (`age1...`).
-     *
-     * @throws kage.errors.InvalidRecipientException / [kage.errors.Bech32Exception] on bad input.
-     */
-    fun parseRecipient(text: String): X25519Recipient = X25519Recipient.decode(text.trim())
+    fun recipientOf(identity: Identity): Recipient =
+        when (identity) {
+            is X25519Identity -> identity.recipient()
+            is MlKem768X25519Identity -> identity.recipient()
+            else -> error("Unsupported identity type: ${identity::class}")
+        }
 
-    /** The public recipient corresponding to a private identity. */
-    fun recipientOf(identity: X25519Identity): X25519Recipient = identity.recipient()
+    fun encode(identity: Identity): String =
+        when (identity) {
+            is X25519Identity -> identity.encodeToString()
+            is MlKem768X25519Identity -> identity.encodeToString()
+            else -> error("Unsupported identity type: ${identity::class}")
+        }
 
-    /** Encode a private identity back to its `AGE-SECRET-KEY-1...` string. */
-    fun encode(identity: X25519Identity): String = identity.encodeToString()
-
-    /** Encode a public recipient back to its `age1...` string. */
-    fun encode(recipient: X25519Recipient): String = recipient.encodeToString()
-
-    /** Loose check that a string looks like an age public recipient, for input validation. */
-    fun looksLikeRecipient(text: String): Boolean = text.trim().startsWith("age1")
-
-    /** Loose check that a string looks like an age private identity, for input validation. */
-    fun looksLikeIdentity(text: String): Boolean = text.trim().startsWith("AGE-SECRET-KEY-1", ignoreCase = true)
+    fun encode(recipient: Recipient): String =
+        when (recipient) {
+            is X25519Recipient -> recipient.encodeToString()
+            is MlKem768X25519Recipient -> recipient.encodeToString()
+            else -> error("Unsupported recipient type: ${recipient::class}")
+        }
 }

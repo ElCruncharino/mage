@@ -8,7 +8,7 @@ package dev.mage.age.store
 import android.content.Context
 import android.util.Base64
 import dev.mage.age.crypto.Identities
-import kage.crypto.x25519.X25519Identity
+import kage.Identity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Arrays
@@ -34,14 +34,14 @@ class IdentityStore(
     /** Seal and store [identity] under [label]. Returns the stored record. */
     fun add(
         label: String,
-        identity: X25519Identity,
+        identity: Identity,
     ): VaultIdentity {
         val sealed = vault.seal(Identities.encode(identity).toByteArray(Charsets.US_ASCII))
         val record =
             VaultIdentity(
                 id = UUID.randomUUID().toString(),
                 label = label.ifBlank { "Identity" },
-                recipient = Identities.encode(identity.recipient()),
+                recipient = Identities.encode(Identities.recipientOf(identity)),
                 createdAt = System.currentTimeMillis(),
                 sealedIvB64 = b64(sealed.iv),
                 sealedCtB64 = b64(sealed.ciphertext),
@@ -51,8 +51,10 @@ class IdentityStore(
         return record
     }
 
-    /** Generate a brand-new identity and store it. */
-    fun generate(label: String): VaultIdentity = add(label, Identities.generate())
+    fun generate(
+        label: String,
+        postQuantum: Boolean = false,
+    ): VaultIdentity = add(label, Identities.generate(postQuantum))
 
     /** Import an `AGE-SECRET-KEY-1...` string. Throws if it does not parse. */
     fun import(
@@ -72,7 +74,7 @@ class IdentityStore(
     }
 
     /** Decrypt and reconstruct the private identity. Requires a valid auth window. */
-    fun open(record: VaultIdentity): X25519Identity {
+    fun open(record: VaultIdentity): Identity {
         val bytes = vault.open(KeystoreVault.Sealed(unb64(record.sealedIvB64), unb64(record.sealedCtB64)))
         // kage only parses from a String (immutable, unwipeable); wipe the decrypted bytes once it has.
         return try {

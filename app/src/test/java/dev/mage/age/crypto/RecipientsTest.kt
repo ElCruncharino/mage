@@ -37,6 +37,7 @@ class RecipientsTest {
     @Test
     fun kindOf_classifiesAgeSshAndJunk() {
         assertEquals(Recipients.Kind.AGE, Recipients.kindOf("age1abc"))
+        assertEquals(Recipients.Kind.PQ, Recipients.kindOf("age1pqabc"))
         assertEquals(Recipients.Kind.SSH, Recipients.kindOf(sshPublic))
         assertEquals(Recipients.Kind.SSH, Recipients.kindOf("ssh-rsa AAAAB3..."))
         assertNull(Recipients.kindOf("not a key"))
@@ -57,7 +58,15 @@ class RecipientsTest {
     @Test
     fun canonical_ageRoundTripsThroughBech32() {
         val id = Identities.generate()
-        val encoded = Identities.encode(id.recipient())
+        val encoded = Identities.encode(Identities.recipientOf(id))
+        assertEquals(encoded, Recipients.canonical(encoded))
+    }
+
+    @Test
+    fun canonical_postQuantumRoundTripsThroughBech32() {
+        val id = Identities.generate(postQuantum = true)
+        val encoded = Identities.encode(Identities.recipientOf(id))
+        assertEquals(Recipients.Kind.PQ, Recipients.kindOf(encoded))
         assertEquals(encoded, Recipients.canonical(encoded))
     }
 
@@ -87,7 +96,8 @@ class RecipientsTest {
     @Test
     fun mixedAgeAndSshRecipients_eitherCanDecrypt() {
         val ageId = Identities.generate()
-        val recipients = listOf(Recipients.parse(Identities.encode(ageId.recipient())), Recipients.parse(sshPublic))
+        val recipients =
+            listOf(Recipients.parse(Identities.encode(Identities.recipientOf(ageId))), Recipients.parse(sshPublic))
 
         val ct = AgeCrypto.encryptBytes(recipients, message, armor = false)
 

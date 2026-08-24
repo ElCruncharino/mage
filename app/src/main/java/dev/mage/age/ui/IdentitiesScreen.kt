@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -89,6 +90,13 @@ fun IdentitiesScreen(
 
         identities.forEach { identity ->
             SectionCard(identity.label) {
+                if (identity.recipient.startsWith("age1pq")) {
+                    Text(
+                        "Post-quantum — can't be mixed with other recipients when encrypting",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
                 Text(shortKey(identity.recipient), style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "Created ${DateFormat.getDateInstance().format(Date(identity.createdAt))}",
@@ -136,11 +144,9 @@ fun IdentitiesScreen(
     }
 
     if (showGenerate) {
-        LabelDialog(
-            title = "Generate identity",
-            confirmLabel = "Generate",
+        GenerateDialog(
             onDismiss = { showGenerate = false },
-            onConfirm = { label ->
+            onConfirm = { label, postQuantum ->
                 showGenerate = false
                 scope.launch {
                     if (!unlock()) {
@@ -150,7 +156,7 @@ fun IdentitiesScreen(
                     runCatching {
                         withContext(Dispatchers.IO) {
                             container.ensureVaultKey()
-                            container.identities.generate(label)
+                            container.identities.generate(label, postQuantum)
                         }
                     }.onSuccess {
                         reload()
@@ -230,25 +236,41 @@ fun IdentitiesScreen(
 }
 
 @Composable
-private fun LabelDialog(
-    title: String,
-    confirmLabel: String,
+private fun GenerateDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+    onConfirm: (String, Boolean) -> Unit,
 ) {
     var label by remember { mutableStateOf("") }
+    var postQuantum by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text("Generate identity") },
         text = {
-            OutlinedTextField(
-                value = label,
-                onValueChange = { label = it },
-                label = { Text("Label (e.g. Personal)") },
-                singleLine = true,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    label = { Text("Label (e.g. Personal)") },
+                    singleLine = true,
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Switch(checked = postQuantum, onCheckedChange = { postQuantum = it })
+                    Column {
+                        Text("Post-quantum")
+                        Text(
+                            "Resists future quantum computers, but can't be mixed with other " +
+                                "recipients when encrypting",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(label) }) { Text(confirmLabel) } },
+        confirmButton = { TextButton(onClick = { onConfirm(label, postQuantum) }) { Text("Generate") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

@@ -123,6 +123,10 @@ fun EncryptScreen(
 
                 EncMode.RECIPIENTS -> {
                     require(chosen.isNotEmpty()) { "Add at least one recipient" }
+                    val kinds = chosen.map { Recipients.kindOf(it) }.toSet()
+                    require(Recipients.Kind.PQ !in kinds || kinds.size == 1) {
+                        "A post-quantum recipient can't be mixed with other recipients"
+                    }
                     chosen.map { Recipients.parse(it) }
                 }
             }
