@@ -11,7 +11,6 @@ package dev.mage.age.crypto
 import kage.Recipient
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -33,7 +32,7 @@ class AgeCryptoTest {
     @Test
     fun x25519_roundTrip_armored() {
         val id = Identities.generate()
-        val ct = AgeCrypto.encryptBytes(listOf(id.recipient()), message, armor = true)
+        val ct = AgeCrypto.encryptBytes(listOf(Identities.recipientOf(id)), message, armor = true)
 
         // Armored output is ASCII and carries the age armor header.
         val text = String(ct, Charsets.US_ASCII)
@@ -48,7 +47,7 @@ class AgeCryptoTest {
     fun multiRecipient_eachCanDecrypt() {
         val alice = Identities.generate()
         val bob = Identities.generate()
-        val recipients: List<Recipient> = listOf(alice.recipient(), bob.recipient())
+        val recipients: List<Recipient> = listOf(Identities.recipientOf(alice), Identities.recipientOf(bob))
 
         val ct = AgeCrypto.encryptBytes(recipients, message, armor = false)
 
@@ -60,7 +59,7 @@ class AgeCryptoTest {
     fun wrongIdentity_failsToDecrypt() {
         val id = Identities.generate()
         val stranger = Identities.generate()
-        val ct = AgeCrypto.encryptBytes(listOf(id.recipient()), message, armor = false)
+        val ct = AgeCrypto.encryptBytes(listOf(Identities.recipientOf(id)), message, armor = false)
 
         try {
             AgeCrypto.decryptBytes(listOf(stranger), ct)
@@ -98,19 +97,42 @@ class AgeCryptoTest {
     fun identity_encodeDecode_isStable() {
         val id = Identities.generate()
         val encodedId = Identities.encode(id)
-        val encodedRecipient = Identities.encode(id.recipient())
-
-        assertTrue(Identities.looksLikeIdentity(encodedId))
-        assertTrue(Identities.looksLikeRecipient(encodedRecipient))
-        assertFalse(Identities.looksLikeRecipient(encodedId))
+        val encodedRecipient = Identities.encode(Identities.recipientOf(id))
 
         // Re-parsing the identity yields one whose recipient encodes identically.
         val reparsed = Identities.parseIdentity(encodedId)
-        assertEquals(encodedRecipient, Identities.encode(reparsed.recipient()))
+        assertEquals(encodedRecipient, Identities.encode(Identities.recipientOf(reparsed)))
 
         // A file encrypted to the re-parsed recipient decrypts with the original identity.
-        val ct = AgeCrypto.encryptBytes(listOf(Identities.parseRecipient(encodedRecipient)), message, false)
+        val ct = AgeCrypto.encryptBytes(listOf(Recipients.parse(encodedRecipient)), message, false)
         assertArrayEquals(message, AgeCrypto.decryptBytes(listOf(id), ct))
+    }
+
+    @Test
+    fun postQuantum_roundTrip() {
+        val id = Identities.generate(postQuantum = true)
+        val encodedId = Identities.encode(id)
+        val encodedRecipient = Identities.encode(Identities.recipientOf(id))
+        assertTrue(encodedId.startsWith("AGE-SECRET-KEY-PQ-"))
+        assertTrue(encodedRecipient.startsWith("age1pq"))
+
+        val ct = AgeCrypto.encryptBytes(listOf(Recipients.parse(encodedRecipient)), message, armor = false)
+        val pt = AgeCrypto.decryptBytes(listOf(Identities.parseIdentity(encodedId)), ct)
+        assertArrayEquals(message, pt)
+    }
+
+    @Test
+    fun postQuantum_cannotMixWithClassicRecipient() {
+        val pq = Identities.generate(postQuantum = true)
+        val classic = Identities.generate()
+        val recipients = listOf(Identities.recipientOf(pq), Identities.recipientOf(classic))
+
+        try {
+            AgeCrypto.encryptBytes(recipients, message, armor = false)
+            fail("expected encrypting to a post-quantum and a classic recipient together to throw")
+        } catch (expected: Exception) {
+            // good — kage's "postquantum" label rejects the mix.
+        }
     }
 
     /**
@@ -124,7 +146,7 @@ class AgeCryptoTest {
     fun multiChunk_throughPartialReadStream_roundTrips() {
         val id = Identities.generate()
         val big = ByteArray(200_000) { (it % 251).toByte() } // ~3 chunks
-        val ct = AgeCrypto.encryptBytes(listOf(id.recipient()), big, armor = false)
+        val ct = AgeCrypto.encryptBytes(listOf(Identities.recipientOf(id)), big, armor = false)
 
         // A stream that never returns more than a handful of bytes per read.
         val drip =

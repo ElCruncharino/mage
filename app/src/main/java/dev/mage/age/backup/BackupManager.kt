@@ -86,7 +86,7 @@ object BackupManager {
             var skipped = 0
             entries.forEach { entry ->
                 val identity = Identities.parseIdentity(entry.key)
-                val recipient = Identities.encode(identity.recipient())
+                val recipient = Identities.encode(Identities.recipientOf(identity))
                 if (recipient in existing) {
                     skipped++
                 } else {
