@@ -1,0 +1,4 @@
+Adds post-quantum identities: generate one with the toggle on the
+identity creation dialog, and encrypt to its recipient. A
+post-quantum recipient can't be mixed with other recipients in the
+same file.
