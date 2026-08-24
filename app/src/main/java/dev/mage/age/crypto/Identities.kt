@@ -14,8 +14,7 @@ import kage.crypto.x25519.X25519Recipient
 
 // Identities are AGE-SECRET-KEY-1... (X25519) or AGE-SECRET-KEY-PQ-1... (post-quantum).
 object Identities {
-    fun generate(postQuantum: Boolean = false): Identity =
-        if (postQuantum) MlKem768X25519Identity.`new`() else X25519Identity.`new`()
+    fun generate(postQuantum: Boolean = false): Identity = if (postQuantum) MlKem768X25519Identity.`new`() else X25519Identity.`new`()
 
     fun parseIdentity(text: String): Identity {
         val t = text.trim()
