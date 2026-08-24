@@ -297,7 +297,7 @@ private fun ImportDialog(
                 OutlinedTextField(
                     value = key,
                     onValueChange = { key = it },
-                    label = { Text("AGE-SECRET-KEY-1…") },
+                    label = { Text("AGE-SECRET-KEY-1… or AGE-SECRET-KEY-PQ-1…") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
