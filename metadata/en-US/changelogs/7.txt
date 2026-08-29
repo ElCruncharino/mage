@@ -1,0 +1,4 @@
+Fixes decrypting large files: a stale check used to block anything
+over ~128 MB even though decryption itself has been streaming for a
+while. The passphrase strength slider also caps lower now and shows
+its actual memory cost instead of just warning it'll be slower.
