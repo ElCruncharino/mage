@@ -13,20 +13,8 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 
-/**
- * Thin, Android-free facade over kage's [Age] object. Kept free of Android types on purpose so it
- * can be exercised by plain-JVM unit tests (kage itself is pure JVM).
- *
- * Encryption is streaming: [encrypt] copies [InputStream] to [OutputStream] without holding the
- * whole payload in memory. Decryption is NOT — kage's [Age.decryptStream] buffers the entire
- * ciphertext internally before producing plaintext, so callers must size-guard decrypt inputs (see
- * CryptoRunner.maxDecryptInputBytes). The byte[] helpers exist only for small inputs (pasted text,
- * key material).
- *
- * Armor on decrypt is automatic: [Age.decryptStream] sniffs the
- * `-----BEGIN AGE ENCRYPTED FILE-----` header and de-armors transparently, so callers never pass an
- * armor flag when decrypting.
- */
+// Thin, Android-free facade over kage's Age object, so it can run in plain-JVM unit tests.
+// encrypt/decrypt both stream; the byte[] helpers are just for small inputs like pasted text.
 object AgeCrypto {
     /** ASCII-armor header age writes; handy for UI hints and tests. */
     const val ARMOR_HEADER: String = "-----BEGIN AGE ENCRYPTED FILE-----"

@@ -124,12 +124,8 @@ object CryptoRunner {
             AgeCrypto.encryptBytes(recipients, text.toByteArray(Charsets.UTF_8), armor)
         }
 
-    /**
-     * Conservative largest `.age` input we should attempt to decrypt on this device. kage's decrypt
-     * is NOT streaming — `AgeFile.parse` reads the whole ciphertext into a ByteArrayOutputStream and
-     * then copies it again (`toByteArray()`), so peak memory is ~2–3× the file size. We allow up to a
-     * quarter of the heap to leave room for that copy plus the rest of the app.
-     */
+    // Guard for decrypt paths that fully buffer in memory (BackupManager's decryptBytes use).
+    // Regular file decrypt streams and doesn't need this.
     fun maxDecryptInputBytes(): Long = Runtime.getRuntime().maxMemory() / 4
 
     /** Outcome of a batch run: how many succeeded, and the source names that failed. */
