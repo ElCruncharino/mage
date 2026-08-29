@@ -37,11 +37,15 @@ object Passphrase {
     const val MIN_WORK_FACTOR: Int = 10
 
     /**
-     * Highest work factor the UI offers. kage's decrypt-side ceiling ([ScryptIdentity]'s default
-     * maxWorkFactor) is 22, and [identity] decrypts with that default — so a file encrypted above 22
-     * could never be reopened in Mage. We cap here to never produce a self-undecryptable file.
+     * Highest work factor the UI offers. scrypt needs ~1 GiB of memory at 20 ([estimatedMemoryBytes]);
+     * kage's own decrypt-side ceiling is 22 (~4 GiB), but capping the UI lower keeps Mage from
+     * producing a file most devices can't actually open. Mage can still decrypt files up to 22 made
+     * by other age tools, this only bounds what Mage's own Encrypt screen offers.
      */
-    const val MAX_WORK_FACTOR: Int = 22
+    const val MAX_WORK_FACTOR: Int = 20
+
+    /** Approximate peak memory scrypt needs at [workFactor] (`128 * N * r` with r=8, per kage). */
+    fun estimatedMemoryBytes(workFactor: Int): Long = 1024L * (1L shl workFactor)
 
     /**
      * Build a passphrase recipient for encryption at [workFactor] (defaults to [DEFAULT_WORK_FACTOR]).

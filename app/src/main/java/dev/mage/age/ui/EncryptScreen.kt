@@ -330,9 +330,9 @@ fun EncryptScreen(
                         },
                 )
                 Text(
-                    "Higher is harder to brute-force but slower to open. Default is " +
-                        "${Passphrase.DEFAULT_WORK_FACTOR}; ${Passphrase.MAX_WORK_FACTOR} is the highest " +
-                        "Mage can still decrypt.",
+                    "Higher is harder to brute-force but needs more memory and time to open " +
+                        "(~${formatMemory(Passphrase.estimatedMemoryBytes(workFactor))} at $workFactor). " +
+                        "Default is ${Passphrase.DEFAULT_WORK_FACTOR}.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -380,3 +380,10 @@ fun EncryptScreen(
         StatusBanner(status)
     }
 }
+
+private fun formatMemory(bytes: Long): String =
+    if (bytes >= 1024 * 1024 * 1024) {
+        "%.1f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
+    } else {
+        "%.0f MB".format(bytes / (1024.0 * 1024.0))
+    }
