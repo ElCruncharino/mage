@@ -125,7 +125,7 @@ class RecipientsTest {
     @Test
     fun workFactor_boundsAreSane() {
         assertEquals(18, Passphrase.DEFAULT_WORK_FACTOR)
-        assertEquals(22, Passphrase.MAX_WORK_FACTOR)
+        assertEquals(20, Passphrase.MAX_WORK_FACTOR)
         assertTrue(Passphrase.MIN_WORK_FACTOR < Passphrase.MAX_WORK_FACTOR)
         // The UI ceiling must stay within what Mage's own default-ceiling identity can decrypt.
         assertTrue(
