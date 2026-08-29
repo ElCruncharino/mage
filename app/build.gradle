@@ -83,6 +83,13 @@ android {
     }
 }
 
+// Keeps unit tests closer to a real device's memory budget, so a decrypt path that regresses to
+// buffering the whole file (see AgeCryptoTest.largeFile_decryptsUnderConstrainedHeap_regressionFor19)
+// fails here instead of shipping.
+tasks.withType(Test).configureEach {
+    maxHeapSize = "512m"
+}
+
 repositories {
     google()
     mavenCentral()
