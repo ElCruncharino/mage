@@ -23,6 +23,8 @@ Releases are signed and built by CI directly from a tagged commit (see
 
 - Encrypt/decrypt files to age recipients (`age1...`) or passphrases, including armor,
   multi-recipient, and encrypt-to-self.
+- Post-quantum identities (`age1pq...`) alongside classic X25519 keys, though they
+  can't be mixed with other recipients on the same file.
 - SSH keys (`ssh-ed25519`, `ssh-rsa`) work as recipients and identities alongside native
   age keys, and can be mixed on one file.
 - Identities are sealed in the Android Keystore (AES-256-GCM, StrongBox where available)
@@ -35,7 +37,7 @@ Releases are signed and built by CI directly from a tagged commit (see
 
 ## Status
 
-Early — currently at [v0.1.3](https://github.com/ElCruncharino/mage/releases/tag/v0.1.3),
+Early — currently at [v0.1.5](https://github.com/ElCruncharino/mage/releases/tag/v0.1.5),
 now also on F-Droid. Built and tested against real kage on a JVM harness plus device
 testing; not independently audited. Treat it accordingly.
 
