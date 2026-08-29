@@ -229,22 +229,6 @@ fun DecryptScreen(
                 return@launch
             }
 
-            // Guard against files too large for kage's in-memory decrypt before attempting.
-            val limit = CryptoRunner.maxDecryptInputBytes()
-            val oversized =
-                withContext(Dispatchers.IO) {
-                    inputUris.firstOrNull { (SafIO.sizeBytes(context, it) ?: 0L) > limit }
-                }
-            if (oversized != null) {
-                val name = withContext(Dispatchers.IO) { SafIO.displayName(context, oversized) } ?: "This file"
-                status =
-                    OpStatus.Error(
-                        "$name is too large to decrypt on this device (~${limit / (1024 * 1024)} MB max). " +
-                            "The age library must load the whole file into memory to decrypt.",
-                    )
-                return@launch
-            }
-
             when (mode) {
                 DecMode.PASSPHRASE -> {
                     if ((pwField?.text?.length ?: 0) == 0) {
@@ -326,8 +310,7 @@ fun DecryptScreen(
 
 private fun decryptError(t: Throwable): String {
     if (t is OutOfMemoryError) {
-        return "Not enough memory to decrypt this file on this device — it's too large for the " +
-            "age library, which loads the whole file into memory."
+        return "Not enough memory to decrypt this file on this device."
     }
     vaultInvalidatedMessage(t)?.let { return it }
     val name = t::class.simpleName ?: "Error"

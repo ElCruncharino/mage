@@ -166,4 +166,59 @@ class AgeCryptoTest {
 
         assertArrayEquals(big, out.toByteArray())
     }
+
+    // Regression test for #19: a 470 MB file used to be rejected by a pre-flight size guard that
+    // assumed decrypt buffered the whole file. It doesn't (Age.decryptStream streams), so this
+    // decrypts one under the 512 MB test heap and checks the old guard formula really would have
+    // rejected it.
+    @Test
+    fun largeFile_decryptsUnderConstrainedHeap_regressionFor19() {
+        val id = Identities.generate()
+        val recipient = Identities.recipientOf(id)
+
+        // Explicit disk-backed dir: the default java.io.tmpdir may be a RAM-backed tmpfs, and this
+        // test writes several hundred MB of fixtures.
+        val dir = java.io.File("build/tmp/largeFileTest").apply { mkdirs() }
+        val plaintext = java.io.File.createTempFile("mage-big-plain", ".bin", dir)
+        val ciphertext = java.io.File.createTempFile("mage-big-cipher", ".age", dir)
+        val roundtrip = java.io.File.createTempFile("mage-big-out", ".bin", dir)
+        try {
+            val size = 470_000_000L
+            val chunk = ByteArray(1 shl 20) // reused 1 MiB filler, so the fixture itself stays flat
+            java.util.Random(42).nextBytes(chunk)
+            java.io.FileOutputStream(plaintext).use { out ->
+                var written = 0L
+                while (written < size) {
+                    val n = minOf(chunk.size.toLong(), size - written).toInt()
+                    out.write(chunk, 0, n)
+                    written += n
+                }
+            }
+
+            java.io.FileInputStream(plaintext).use { src ->
+                java.io.FileOutputStream(ciphertext).use { dst ->
+                    AgeCrypto.encrypt(listOf(recipient), src, dst, armor = false)
+                }
+            }
+
+            val oldGuardLimit = Runtime.getRuntime().maxMemory() / 4
+            assertTrue(
+                "old guard limit ($oldGuardLimit) should be smaller than the ciphertext " +
+                    "(${ciphertext.length()}) for this to be a real regression test",
+                oldGuardLimit < ciphertext.length(),
+            )
+
+            java.io.FileInputStream(ciphertext).use { src ->
+                java.io.FileOutputStream(roundtrip).use { dst ->
+                    AgeCrypto.decrypt(listOf(id), src, dst)
+                }
+            }
+
+            assertEquals(plaintext.length(), roundtrip.length())
+        } finally {
+            plaintext.delete()
+            ciphertext.delete()
+            roundtrip.delete()
+        }
+    }
 }
