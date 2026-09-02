@@ -138,7 +138,6 @@ internal object Wordlist {
         whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf
         woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you
         young youth zebra zero zone zoo
-        """
-            .trimIndent()
+        """.trimIndent()
             .split(Regex("\\s+"))
 }
