@@ -305,8 +305,19 @@ fun EncryptScreen(
                 onToggleShow = { showPw = !showPw },
                 onViewCreated = { confirmField = it },
             )
+            TextButton(
+                onClick = {
+                    val words = Passphrase.generate()
+                    val text = String(words)
+                    Arrays.fill(words, ' ')
+                    pwField?.setText(text)
+                    confirmField?.setText(text)
+                    showPw = true
+                },
+            ) { Text("Generate a secure passphrase") }
             Text(
-                "Anyone with this passphrase can open the file. Choose something strong and share it safely.",
+                "Anyone with this passphrase can open the file. Choose something strong and share it safely, " +
+                    "or generate one above, which is shown so you can save it.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
