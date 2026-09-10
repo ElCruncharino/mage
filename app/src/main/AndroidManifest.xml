@@ -79,6 +79,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
+            <!-- Sharing an armored age text block (e.g. from a chat app) offers Decrypt too. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
             <!-- Also offer to open .age files directly from a file manager. No host: per Android's
                  intent-filter matching, a scheme with no authority matches content:// URIs from
                  any provider, which is what we want (Downloads, Drive, other file managers, ...);
