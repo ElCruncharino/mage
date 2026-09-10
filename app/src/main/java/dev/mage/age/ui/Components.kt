@@ -247,6 +247,28 @@ internal fun vaultInvalidatedMessage(t: Throwable): String? =
         null
     }
 
+/** Turns a decrypt failure into a message worth showing the user, shared by file and text decrypt. */
+internal fun decryptError(t: Throwable): String {
+    if (t is OutOfMemoryError) {
+        return "Not enough memory to decrypt this file on this device."
+    }
+    vaultInvalidatedMessage(t)?.let { return it }
+    val name = t::class.simpleName ?: "Error"
+    return when {
+        name.contains("UserNotAuthenticated") -> {
+            "Vault locked — unlock and try again"
+        }
+
+        name.contains("NoIdentities") || name.contains("IncorrectHMAC") || name.contains("Identity") -> {
+            "None of your keys (or this passphrase) can open this file"
+        }
+
+        else -> {
+            "Decryption failed: ${t.message ?: name}"
+        }
+    }
+}
+
 /**
  * Abbreviate a public key for compact display in chips and cards. age keys collapse to
  * `age1abc…wxyz`; SSH keys keep their type so they stay recognizable, e.g. `ssh-ed25519 …AB12CD34`.
