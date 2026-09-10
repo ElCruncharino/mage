@@ -3,8 +3,6 @@
  * Copyright (c) 2026 Nick Haghiri
  */
 
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-
 package dev.mage.age.ui
 
 import android.widget.EditText
@@ -12,7 +10,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -39,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -220,78 +215,17 @@ fun EncryptScreen(
         )
 
         if (mode == EncMode.RECIPIENTS) {
-            SectionCard("Recipients") {
-                Text(
+            RecipientsPicker(
+                chosen = chosen,
+                recipientInput = recipientInput,
+                onRecipientInputChange = { recipientInput = it },
+                onStatusChange = { status = it },
+                savedIdentities = savedIdentities,
+                savedRecipients = savedRecipients,
+                description =
                     "Add the public keys of who should be able to open this file — age (age1…) or " +
                         "SSH (ssh-ed25519 / ssh-rsa) keys.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = recipientInput,
-                        onValueChange = { recipientInput = it },
-                        label = { Text("age1… or ssh-… public key") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Button(
-                        onClick = {
-                            val canonical = runCatching { Recipients.canonical(recipientInput) }
-                            if (canonical.isSuccess) {
-                                val key = canonical.getOrThrow()
-                                if (key !in chosen) chosen.add(key)
-                                recipientInput = ""
-                                status = OpStatus.Idle
-                            } else {
-                                status = OpStatus.Error("Not a valid age or SSH public key")
-                            }
-                        },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) { Text("Add") }
-                }
-
-                if (chosen.isNotEmpty()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        chosen.forEach { key ->
-                            InputChip(
-                                selected = true,
-                                onClick = { chosen.remove(key) },
-                                label = { Text(shortKey(key)) },
-                                trailingIcon = { Text("✕") },
-                                modifier =
-                                    Modifier.semantics {
-                                        contentDescription = "Recipient ${shortKey(key)}, tap to remove"
-                                    },
-                            )
-                        }
-                    }
-                }
-
-                val addable =
-                    savedIdentities.map { it.label to it.recipient } +
-                        savedRecipients.map { it.label to it.recipient }
-                if (addable.isNotEmpty()) {
-                    Text("Add a saved key:", style = MaterialTheme.typography.bodySmall)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        addable.forEach { (label, key) ->
-                            OutlinedButton(
-                                onClick = { if (key !in chosen) chosen.add(key) },
-                                modifier = Modifier.heightIn(min = 48.dp),
-                            ) { Text(label) }
-                        }
-                    }
-                } else {
-                    Text(
-                        "No saved keys yet — add recipients under the Keys tab to pick them here.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            )
         } else {
             SecurePasswordField(
                 label = "Passphrase",
@@ -305,16 +239,7 @@ fun EncryptScreen(
                 onToggleShow = { showPw = !showPw },
                 onViewCreated = { confirmField = it },
             )
-            TextButton(
-                onClick = {
-                    val words = Passphrase.generate()
-                    val text = String(words)
-                    Arrays.fill(words, ' ')
-                    pwField?.setText(text)
-                    confirmField?.setText(text)
-                    showPw = true
-                },
-            ) { Text("Generate a secure passphrase") }
+            GeneratePassphraseButton(pwField = pwField, confirmField = confirmField, onGenerated = { showPw = true })
             Text(
                 "Anyone with this passphrase can open the file. Choose something strong and share it safely, " +
                     "or generate one above, which is shown so you can save it.",
