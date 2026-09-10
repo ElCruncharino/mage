@@ -23,6 +23,8 @@ Releases are signed and built by CI directly from a tagged commit (see
 
 - Encrypt/decrypt files to age recipients (`age1...`) or passphrases, including armor,
   multi-recipient, and encrypt-to-self.
+- A Text screen for short messages: paste or type, pick recipients or a passphrase, and
+  get back an ASCII-armored block to copy or share, no file involved.
 - Post-quantum identities (`age1pq...`) alongside classic X25519 keys, though they
   can't be mixed with other recipients on the same file.
 - SSH keys (`ssh-ed25519`, `ssh-rsa`) work as recipients and identities alongside native
@@ -32,12 +34,12 @@ Releases are signed and built by CI directly from a tagged commit (see
   encode/scan for sharing a public key.
 - Batch mode for encrypting/decrypting more than one file at a time into a folder.
 - Encrypted export/import of your identity vault, so it's not stuck on one device.
-- Hooks into the system: share-sheet targets, a `.age` file-manager association, launcher
-  shortcuts, a Quick Settings tile.
+- Hooks into the system: share-sheet targets, the text-selection menu, a `.age`
+  file-manager association, launcher shortcuts, a Quick Settings tile.
 
 ## Status
 
-Early — currently at [v0.1.5](https://github.com/ElCruncharino/mage/releases/tag/v0.1.5),
+Early — currently at [v0.1.6](https://github.com/ElCruncharino/mage/releases/tag/v0.1.6),
 now also on F-Droid. Built and tested against real kage on a JVM harness plus device
 testing; not independently audited. Treat it accordingly.
 
