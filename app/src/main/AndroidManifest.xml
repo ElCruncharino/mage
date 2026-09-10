@@ -101,6 +101,33 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Text-selection toolbar targets ("Encrypt with Mage" / "Decrypt with Mage"): select
+             text in any app, tap one of these in the selection menu, land on the Text screen with
+             that selection pre-filled. Same PendingInput plumbing as the share-sheet targets above. -->
+        <activity-alias
+            android:name=".ProcessTextEncrypt"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="@string/process_text_encrypt">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ProcessTextDecrypt"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="@string/process_text_decrypt">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Quick Settings tile: tap to jump straight into Encrypt (phase 2). -->
         <service
             android:name=".tile.EncryptTileService"
