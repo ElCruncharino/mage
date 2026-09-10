@@ -10,6 +10,7 @@ package dev.mage.age.ui
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -40,6 +41,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -54,18 +56,33 @@ private enum class Dest(
     val route: String,
     val label: String,
     val icon: ImageVector,
+    // Set-once/rarely-visited destinations (Settings) live in the top-bar overflow menu instead of
+    // competing for space in the bottom nav with the screens you actually switch between often.
+    val inBottomNav: Boolean = true,
 ) {
     ENCRYPT("encrypt", "Encrypt", Icons.Filled.Lock),
     DECRYPT("decrypt", "Decrypt", Icons.Filled.LockOpen),
+    TEXT("text", "Text", Icons.AutoMirrored.Filled.Message),
     KEYS("keys", "Keys", Icons.Filled.VpnKey),
-    SETTINGS("settings", "Settings", Icons.Filled.Settings),
+    SETTINGS("settings", "Settings", Icons.Filled.Settings, inBottomNav = false),
 }
 
-/** Holds files handed in by a share/open intent so the target screen can consume them once. */
+/** Switches tabs, preserving each tab's own back stack/scroll state (bottom nav + Settings menu item). */
+private fun NavHostController.navigateTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+/** Holds a share/open intent's payload so the target screen can consume it once. */
 class PendingInput(
-    initial: List<android.net.Uri>,
+    initialUris: List<android.net.Uri>,
+    initialSharedText: String? = null,
 ) {
-    var uris by mutableStateOf(initial)
+    var uris by mutableStateOf(initialUris)
+    var sharedText by mutableStateOf(initialSharedText)
 }
 
 @Composable
@@ -75,7 +92,7 @@ fun MageRoot(
     unlock: suspend () -> Boolean,
 ) {
     val navController = rememberNavController()
-    val pending = remember { PendingInput(initialTarget.fileUris) }
+    val pending = remember { PendingInput(initialTarget.fileUris, initialTarget.sharedText) }
     var showAbout by remember { mutableStateOf(false) }
     var showOverflow by remember { mutableStateOf(false) }
     val density = LocalDensity.current
@@ -83,10 +100,10 @@ fun MageRoot(
     var navBarHeight by remember { mutableStateOf(0.dp) }
 
     val start =
-        when (initialTarget.destination) {
-            LaunchTarget.Destination.DECRYPT -> Dest.DECRYPT
-            LaunchTarget.Destination.ENCRYPT -> Dest.ENCRYPT
-            LaunchTarget.Destination.HOME -> Dest.ENCRYPT
+        when {
+            initialTarget.sharedText != null -> Dest.TEXT
+            initialTarget.destination == LaunchTarget.Destination.DECRYPT -> Dest.DECRYPT
+            else -> Dest.ENCRYPT
         }
 
     val backStack by navController.currentBackStackEntryAsState()
@@ -110,6 +127,16 @@ fun MageRoot(
                     }
                     DropdownMenu(expanded = showOverflow, onDismissRequest = { showOverflow = false }) {
                         DropdownMenuItem(
+                            text = { Text("Settings") },
+                            leadingIcon = {
+                                Icon(Icons.Filled.Settings, contentDescription = null)
+                            },
+                            onClick = {
+                                showOverflow = false
+                                navController.navigateTab(Dest.SETTINGS.route)
+                            },
+                        )
+                        DropdownMenuItem(
                             text = { Text("About Mage") },
                             leadingIcon = {
                                 Icon(Icons.Filled.Info, contentDescription = null)
@@ -126,18 +153,12 @@ fun MageRoot(
         bottomBar = {
             FloatingNavBar(
                 items =
-                    Dest.entries.map { dest ->
+                    Dest.entries.filter { it.inBottomNav }.map { dest ->
                         NavBarItem(
                             label = dest.label,
                             icon = dest.icon,
                             selected = dest == currentDest,
-                            onClick = {
-                                navController.navigate(dest.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.navigateTab(dest.route) },
                         )
                     },
                 modifier =
@@ -161,6 +182,14 @@ fun MageRoot(
                 }
                 composable(Dest.DECRYPT.route) {
                     DecryptScreen(container = container, pending = pending, unlock = unlock)
+                }
+                composable(Dest.TEXT.route) {
+                    TextScreen(
+                        container = container,
+                        pending = pending,
+                        startInDecrypt = initialTarget.destination == LaunchTarget.Destination.DECRYPT,
+                        unlock = unlock,
+                    )
                 }
                 composable(Dest.KEYS.route) {
                     KeysScreen(container = container, unlock = unlock)

@@ -79,6 +79,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
+            <!-- Sharing an armored age text block (e.g. from a chat app) offers Decrypt too. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
             <!-- Also offer to open .age files directly from a file manager. No host: per Android's
                  intent-filter matching, a scheme with no authority matches content:// URIs from
                  any provider, which is what we want (Downloads, Drive, other file managers, ...);
@@ -92,6 +98,33 @@
                 <data android:scheme="content" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\\.age" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Text-selection toolbar targets ("Encrypt with Mage" / "Decrypt with Mage"): select
+             text in any app, tap one of these in the selection menu, land on the Text screen with
+             that selection pre-filled. Same PendingInput plumbing as the share-sheet targets above. -->
+        <activity-alias
+            android:name=".ProcessTextEncrypt"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="@string/process_text_encrypt">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ProcessTextDecrypt"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="@string/process_text_decrypt">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity-alias>
 
