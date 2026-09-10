@@ -5,33 +5,48 @@
 
 package dev.mage.age.ui
 
+import android.widget.EditText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.mage.age.crypto.Passphrase
+import dev.mage.age.crypto.Recipients
 import dev.mage.age.store.KeystoreVault
+import dev.mage.age.store.SavedRecipient
+import dev.mage.age.store.VaultIdentity
 import dev.mage.age.ui.components.ExpressiveLoadingIndicator
 import dev.mage.age.ui.theme.StatusLevel
 import dev.mage.age.ui.theme.statusColors
+import java.util.Arrays
 
 /** A titled card section used to group related controls. */
 @Composable
@@ -50,6 +65,105 @@ fun SectionCard(
             content()
         }
     }
+}
+
+/**
+ * The "who can decrypt this" picker shared by file and text encryption: paste-to-add for an age or
+ * SSH public key, removable chips for what's chosen, and one-tap buttons for saved identities and
+ * recipients. [description] lets each caller phrase the intro line for its own context (file vs.
+ * message).
+ */
+@Composable
+fun RecipientsPicker(
+    chosen: SnapshotStateList<String>,
+    recipientInput: String,
+    onRecipientInputChange: (String) -> Unit,
+    onStatusChange: (OpStatus) -> Unit,
+    savedIdentities: List<VaultIdentity>,
+    savedRecipients: List<SavedRecipient>,
+    description: String,
+) {
+    SectionCard("Recipients") {
+        Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = recipientInput,
+                onValueChange = onRecipientInputChange,
+                label = { Text("age1… or ssh-… public key") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Button(
+                onClick = {
+                    val canonical = runCatching { Recipients.canonical(recipientInput) }
+                    if (canonical.isSuccess) {
+                        val key = canonical.getOrThrow()
+                        if (key !in chosen) chosen.add(key)
+                        onRecipientInputChange("")
+                        onStatusChange(OpStatus.Idle)
+                    } else {
+                        onStatusChange(OpStatus.Error("Not a valid age or SSH public key"))
+                    }
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Add") }
+        }
+
+        if (chosen.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                chosen.forEach { key ->
+                    InputChip(
+                        selected = true,
+                        onClick = { chosen.remove(key) },
+                        label = { Text(shortKey(key)) },
+                        trailingIcon = { Text("✕") },
+                        modifier = Modifier.semantics { contentDescription = "Recipient ${shortKey(key)}, tap to remove" },
+                    )
+                }
+            }
+        }
+
+        val addable = savedIdentities.map { it.label to it.recipient } + savedRecipients.map { it.label to it.recipient }
+        if (addable.isNotEmpty()) {
+            Text("Add a saved key:", style = MaterialTheme.typography.bodySmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                addable.forEach { (label, key) ->
+                    OutlinedButton(
+                        onClick = { if (key !in chosen) chosen.add(key) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text(label) }
+                }
+            }
+        } else {
+            Text(
+                "No saved keys yet — add recipients under the Keys tab to pick them here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Fills both passphrase fields with a freshly generated one and reveals them, shared by file and
+ * text encryption's passphrase mode.
+ */
+@Composable
+fun GeneratePassphraseButton(
+    pwField: EditText?,
+    confirmField: EditText?,
+    onGenerated: () -> Unit,
+) {
+    TextButton(
+        onClick = {
+            val words = Passphrase.generate()
+            val text = String(words)
+            Arrays.fill(words, ' ')
+            pwField?.setText(text)
+            confirmField?.setText(text)
+            onGenerated()
+        },
+    ) { Text("Generate a secure passphrase") }
 }
 
 /** Outcome banner shown after an operation. */
