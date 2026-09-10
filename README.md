@@ -40,8 +40,8 @@ b72ba7c9b6fe10c0aacc141cde5eb1ffe3e47d7473ca68b9cc339dd0d4fdcfa3
 <p align="center">
 <img src="metadata/en-US/images/phoneScreenshots/1.png" width="200" alt="Encrypt screen, choosing recipients">
 <img src="metadata/en-US/images/phoneScreenshots/2.png" width="200" alt="Decrypt screen">
+<img src="metadata/en-US/images/phoneScreenshots/7.png" width="200" alt="Text screen for encrypting or decrypting a message without a file">
 <img src="metadata/en-US/images/phoneScreenshots/3.png" width="200" alt="Saved identities under the Keys tab">
-<img src="metadata/en-US/images/phoneScreenshots/6.png" width="200" alt="Settings screen">
 </p>
 
 ## What it does
