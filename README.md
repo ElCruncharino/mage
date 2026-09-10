@@ -17,7 +17,32 @@ The minimum supported Android version is API 26.
 For Obtainium, add an app with the URL `https://github.com/ElCruncharino/mage`.
 
 Releases are signed and built by CI directly from a tagged commit (see
-`.github/workflows/release.yml`) — nothing is hand-uploaded.
+`.github/workflows/release.yml`).
+
+### Verification
+
+Every release APK is signed with the same key. To confirm a downloaded APK is
+genuine, verify it with
+[`apksigner`](https://developer.android.com/tools/apksigner):
+
+```sh
+apksigner verify --print-certs Mage-<version>.apk
+```
+
+The certificate's SHA-256 fingerprint should match:
+
+```
+b72ba7c9b6fe10c0aacc141cde5eb1ffe3e47d7473ca68b9cc339dd0d4fdcfa3
+```
+
+## Screenshots
+
+<p align="center">
+<img src="metadata/en-US/images/phoneScreenshots/1.png" width="200" alt="Encrypt screen, choosing recipients">
+<img src="metadata/en-US/images/phoneScreenshots/2.png" width="200" alt="Decrypt screen">
+<img src="metadata/en-US/images/phoneScreenshots/3.png" width="200" alt="Saved identities under the Keys tab">
+<img src="metadata/en-US/images/phoneScreenshots/6.png" width="200" alt="Settings screen">
+</p>
 
 ## What it does
 
@@ -39,16 +64,16 @@ Releases are signed and built by CI directly from a tagged commit (see
 
 ## Status
 
-Early — currently at [v0.1.6](https://github.com/ElCruncharino/mage/releases/tag/v0.1.6),
+Early. Currently at [v0.1.6](https://github.com/ElCruncharino/mage/releases/tag/v0.1.6),
 now also on F-Droid. Built and tested against real kage on a JVM harness plus device
-testing; not independently audited. Treat it accordingly.
+testing. Not independently audited. Treat it accordingly.
 
 ## Building
 
 kage is pulled in as a git submodule, tracking upstream `android-password-store/kage`
 directly, and built as a composite build (see `settings.gradle`); edits to the library
 apply straight to the app with no publish step. That's handy for testing kage changes
-before they're upstreamed or before a numbered release ships them — swap it for a plain
+before they're upstreamed or before a numbered release ships them. Swap it for a plain
 `com.github.android-password-store:kage` version coordinate if you don't need that.
 
 ```sh
@@ -61,9 +86,9 @@ If you already cloned without `--recursive`, run `git submodule update --init` f
 
 ## Non-goals
 
-- Its own crypto implementation — that's kage's job; Mage is the GUI that was missing.
+- Its own crypto implementation. That's kage's job, Mage is only the GUI.
 - A general-purpose file manager or password manager.
-- age-plugin support — the reference plugin mechanism shells out to binaries on `$PATH`,
+- age-plugin support: the reference plugin mechanism shells out to binaries on `$PATH`,
   which doesn't work on Android.
 
 ## License
