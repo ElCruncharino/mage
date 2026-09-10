@@ -112,6 +112,10 @@ data class NavBarItem(
  * A floating, pill-shaped navigation toolbar — the expressive replacement for the bottom
  * `NavigationBar`. The selected pill shows its label; the rest are icon-only to save space. Each
  * pill is a ≥48dp tap target exposing the tab role and its selected state to TalkBack.
+ *
+ * Keep this to 3-4 frequently-used destinations: unlike Material's own `ShortNavigationBar`, pills
+ * here aren't equal-weight, so a long label on the selected pill can push the row wider than the
+ * screen. Anything visited rarely (e.g. Settings) belongs in the top-bar overflow menu instead.
  */
 @Composable
 fun FloatingNavBar(
