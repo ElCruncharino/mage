@@ -63,6 +63,7 @@ fun IdentitiesScreen(
     var showImport by remember { mutableStateOf(false) }
     var reveal by remember { mutableStateOf<Pair<String, String>?>(null) } // label to private key
     var qrFor by remember { mutableStateOf<VaultIdentity?>(null) }
+    var pendingDelete by remember { mutableStateOf<VaultIdentity?>(null) }
 
     suspend fun reload() {
         identities = withContext(Dispatchers.IO) { container.identities.list() }
@@ -130,13 +131,7 @@ fun IdentitiesScreen(
                         }
                     }) { Text("Reveal private") }
 
-                    TextButton(onClick = {
-                        scope.launch {
-                            withContext(Dispatchers.IO) { container.identities.delete(identity.id) }
-                            reload()
-                            status = OpStatus.Success("Deleted ${identity.label}")
-                        }
-                    }) { Text("Delete") }
+                    TextButton(onClick = { pendingDelete = identity }) { Text("Delete") }
                 }
             }
         }
@@ -233,6 +228,35 @@ fun IdentitiesScreen(
 
     qrFor?.let { identity ->
         QrDialog(title = identity.label, value = identity.recipient, onDismiss = { qrFor = null })
+    }
+
+    pendingDelete?.let { identity ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete '${identity.label}'?") },
+            text = {
+                Text(
+                    "This can't be undone. Anything encrypted to this identity will no longer be " +
+                        "decryptable unless you have a backup.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDelete = null
+                    scope.launch {
+                        if (!unlock()) {
+                            status = OpStatus.Error("Unlock cancelled")
+                            return@launch
+                        }
+                        withContext(Dispatchers.IO) { container.identities.delete(identity.id) }
+                        reload()
+                        status = OpStatus.Success("Deleted ${identity.label}")
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+        )
     }
 }
 
