@@ -124,6 +124,14 @@ object CryptoRunner {
             AgeCrypto.encryptBytes(recipients, text.toByteArray(Charsets.UTF_8), armor)
         }
 
+    suspend fun decryptText(
+        identities: List<Identity>,
+        armoredText: String,
+    ): ByteArray =
+        withContext(Dispatchers.IO) {
+            AgeCrypto.decryptBytes(identities, armoredText.toByteArray(Charsets.UTF_8))
+        }
+
     // Guard for decrypt paths that fully buffer in memory (BackupManager's decryptBytes use).
     // Regular file decrypt streams and doesn't need this.
     fun maxDecryptInputBytes(): Long = Runtime.getRuntime().maxMemory() / 4

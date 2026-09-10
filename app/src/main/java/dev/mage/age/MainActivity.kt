@@ -16,6 +16,7 @@ import androidx.fragment.app.FragmentActivity
 import dev.mage.age.io.IntentRouter
 import dev.mage.age.io.LaunchTarget
 import dev.mage.age.store.BiometricGate
+import dev.mage.age.ui.ClipboardGuard
 import dev.mage.age.ui.MageRoot
 import dev.mage.age.ui.theme.MageTheme
 
@@ -52,6 +53,11 @@ class MainActivity : FragmentActivity() {
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ClipboardGuard.onForeground(this)
     }
 
     /**
