@@ -307,24 +307,3 @@ fun DecryptScreen(
         StatusBanner(status)
     }
 }
-
-private fun decryptError(t: Throwable): String {
-    if (t is OutOfMemoryError) {
-        return "Not enough memory to decrypt this file on this device."
-    }
-    vaultInvalidatedMessage(t)?.let { return it }
-    val name = t::class.simpleName ?: "Error"
-    return when {
-        name.contains("UserNotAuthenticated") -> {
-            "Vault locked — unlock and try again"
-        }
-
-        name.contains("NoIdentities") || name.contains("IncorrectHMAC") || name.contains("Identity") -> {
-            "None of your keys (or this passphrase) can open this file"
-        }
-
-        else -> {
-            "Decryption failed: ${t.message ?: name}"
-        }
-    }
-}
