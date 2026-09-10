@@ -1,0 +1,6 @@
+Adds a Text screen for encrypting and decrypting short messages
+without picking a file: paste text, choose recipients or a
+passphrase, and get back something to copy or share. It's also
+reachable from the share sheet and from the text-selection menu in
+any app. Deleting a saved identity now asks for confirmation, and
+unlocks the vault first if biometric lock is on.
