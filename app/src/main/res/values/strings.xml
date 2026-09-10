@@ -4,6 +4,9 @@
     <string name="share_target_encrypt">Encrypt with Mage</string>
     <string name="share_target_decrypt">Decrypt with Mage</string>
 
+    <string name="process_text_encrypt">@string/share_target_encrypt</string>
+    <string name="process_text_decrypt">@string/share_target_decrypt</string>
+
     <string name="tile_encrypt">Encrypt</string>
 
     <string name="shortcut_encrypt_short">Encrypt</string>

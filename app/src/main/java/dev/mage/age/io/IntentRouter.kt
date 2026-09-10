@@ -22,6 +22,7 @@ data class LaunchTarget(
 /**
  * Maps an incoming [Intent] to a [LaunchTarget]:
  *  - share-sheet aliases `.ShareEncrypt` / `.ShareDecrypt` (ACTION_SEND / SEND_MULTIPLE)
+ *  - text-selection toolbar aliases `.ProcessTextEncrypt` / `.ProcessTextDecrypt` (ACTION_PROCESS_TEXT)
  *  - opening a `.age` file (ACTION_VIEW) -> decrypt
  *  - launcher shortcuts carrying the `START_DEST` extra
  *  - plain launch -> home
@@ -32,10 +33,23 @@ object IntentRouter {
     fun route(intent: Intent?): LaunchTarget {
         if (intent == null) return LaunchTarget(LaunchTarget.Destination.HOME)
 
-        val viaDecryptAlias = intent.component?.className?.endsWith("ShareDecrypt") == true
-        val viaEncryptAlias = intent.component?.className?.endsWith("ShareEncrypt") == true
+        val className = intent.component?.className
+        val viaDecryptAlias = className?.endsWith("ShareDecrypt") == true
+        val viaEncryptAlias = className?.endsWith("ShareEncrypt") == true
 
         return when (intent.action) {
+            Intent.ACTION_PROCESS_TEXT -> {
+                // Selection toolbar hands over plain CharSequence, not EXTRA_TEXT.
+                val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+                val dest =
+                    if (className?.endsWith("ProcessTextDecrypt") == true) {
+                        LaunchTarget.Destination.DECRYPT
+                    } else {
+                        LaunchTarget.Destination.ENCRYPT
+                    }
+                LaunchTarget(dest, sharedText = text)
+            }
+
             Intent.ACTION_SEND -> {
                 val uri = intent.parcelable<Uri>(Intent.EXTRA_STREAM)
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
