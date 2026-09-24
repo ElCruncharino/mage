@@ -64,7 +64,7 @@ b72ba7c9b6fe10c0aacc141cde5eb1ffe3e47d7473ca68b9cc339dd0d4fdcfa3
 
 ## Status
 
-Early. Currently at [v0.1.6](https://github.com/ElCruncharino/mage/releases/tag/v0.1.6),
+Early. Currently at [v0.1.7](https://github.com/ElCruncharino/mage/releases/tag/v0.1.7),
 now also on F-Droid. Built and tested against real kage on a JVM harness plus device
 testing. Not independently audited. Treat it accordingly.
 
