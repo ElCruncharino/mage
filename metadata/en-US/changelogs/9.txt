@@ -1,0 +1,2 @@
+Fixes the floating nav bar overlapping the on-screen back/home/recents
+buttons on devices using 3-button navigation.
