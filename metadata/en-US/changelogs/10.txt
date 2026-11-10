@@ -1,0 +1,1 @@
+Adds a copy option for the first line of a passphrase file. The clipboard is cleared after 45 seconds while Mage is open.
