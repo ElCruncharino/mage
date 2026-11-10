@@ -45,9 +45,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
-import java.nio.charset.CodingErrorAction
 import java.util.Arrays
 
 private enum class DecMode { IDENTITY, PASSPHRASE }
@@ -197,10 +194,6 @@ fun DecryptScreen(
             return
         }
         val batch = inputUris.size > 1
-        if (batch && toClipboard) {
-            status = OpStatus.Error("Copy works on one file at a time")
-            return
-        }
 
         // For a single file, decrypt into private cache first (validating the identity/passphrase) and
         // only open the save dialog if that succeeds — so a wrong passphrase never creates a 0-byte
@@ -339,16 +332,13 @@ private suspend fun copyFirstLine(
         withContext(Dispatchers.IO) {
             try {
                 if (temp.length() > COPY_LIMIT_BYTES) return@withContext null
-                Charsets.UTF_8
-                    .newDecoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .decode(ByteBuffer.wrap(temp.readBytes()))
-                    .toString()
+                temp
+                    .readBytes()
+                    .decodeToString(throwOnInvalidSequence = true)
                     .lineSequence()
                     .first()
                     .trimEnd('\r')
-            } catch (e: CharacterCodingException) {
+            } catch (e: IllegalArgumentException) {
                 null
             } finally {
                 temp.delete()
