@@ -22,13 +22,13 @@ import java.security.MessageDigest
 
 /**
  * Copies sensitive text (decrypted plaintext, private keys) to the clipboard and clears it again
- * ~60s later, so it doesn't linger. Android 10+ only lets a foreground app read/write the
+ * ~45s later, so it doesn't linger. Android 10+ only lets a foreground app read/write the
  * clipboard, so the clear can only run while Mage is foreground; [onForeground] catches up on a
  * clear that was due while the app was backgrounded. Tracks a hash of what was copied, not the
  * text itself, so a clear never wipes something newer the user copied elsewhere in the meantime.
  */
 object ClipboardGuard {
-    private const val CLEAR_DELAY_MS = 60_000L
+    private const val CLEAR_DELAY_MS = 45_000L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var pending: Job? = null

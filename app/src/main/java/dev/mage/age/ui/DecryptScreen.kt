@@ -5,6 +5,7 @@
 
 package dev.mage.age.ui
 
+import android.content.Context
 import android.provider.DocumentsContract
 import android.widget.EditText
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,10 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -185,7 +188,7 @@ fun DecryptScreen(
             }
         }
 
-    fun startDecrypt() {
+    fun startDecrypt(toClipboard: Boolean = false) {
         if (inputUris.isEmpty()) {
             status = OpStatus.Error("Choose a .age file first")
             return
@@ -207,8 +210,12 @@ fun DecryptScreen(
                 CryptoRunner.decryptToFile(context, buildIdentities(), src, temp)
             }.fold(
                 onSuccess = {
-                    pendingPlain = temp
-                    saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
+                    if (toClipboard) {
+                        status = copyFirstLine(context, temp)
+                    } else {
+                        pendingPlain = temp
+                        saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
+                    }
                 },
                 onFailure = {
                     temp.delete()
@@ -303,7 +310,52 @@ fun DecryptScreen(
             enabled = inputUris.isNotEmpty(),
             onClick = { startDecrypt() },
         )
+        if (inputUris.size <= 1) {
+            OutlinedButton(
+                onClick = { startDecrypt(toClipboard = true) },
+                enabled = inputUris.isNotEmpty() && !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Decrypt & copy first line") }
+        }
 
         StatusBanner(status)
+    }
+}
+
+private const val COPY_LIMIT_BYTES = 64L * 1024
+
+private suspend fun copyFirstLine(
+    context: Context,
+    temp: File,
+): OpStatus {
+    val line =
+        withContext(Dispatchers.IO) {
+            try {
+                if (temp.length() > COPY_LIMIT_BYTES) return@withContext null
+                temp
+                    .readBytes()
+                    .decodeToString(throwOnInvalidSequence = true)
+                    .lineSequence()
+                    .first()
+                    .trimEnd('\r')
+            } catch (e: Exception) {
+                null
+            } finally {
+                temp.delete()
+            }
+        }
+    return when {
+        line == null -> {
+            OpStatus.Error("Can't copy: the file is over 64 KB or isn't plain text. Use Decrypt & save.")
+        }
+
+        line.isEmpty() -> {
+            OpStatus.Error("The first line of this file is empty")
+        }
+
+        else -> {
+            ClipboardGuard.copySensitive(context, "decrypted", line)
+            OpStatus.Success("Copied first line. Mage clears it after 45 s while it's open.")
+        }
     }
 }
