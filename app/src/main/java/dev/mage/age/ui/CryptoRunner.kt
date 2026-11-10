@@ -62,19 +62,6 @@ object CryptoRunner {
         }
     }
 
-    suspend fun decryptToUri(
-        context: Context,
-        identities: List<Identity>,
-        input: Uri,
-        output: Uri,
-    ) = withContext(Dispatchers.IO) {
-        SafIO.openInput(context, input).use { src ->
-            SafIO.openOutput(context, output).use { dst ->
-                AgeCrypto.decrypt(identities, src, dst)
-            }
-        }
-    }
-
     /**
      * Decrypt [input] into a private cache [dest] file. This exists so the UI can *validate* that a
      * file is decryptable (correct identity / passphrase) before asking the user where to save —
