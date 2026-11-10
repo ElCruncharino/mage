@@ -355,7 +355,7 @@ private suspend fun copyFirstLine(
 
         else -> {
             ClipboardGuard.copySensitive(context, "decrypted", line)
-            OpStatus.Success("Copied first line. Clipboard clears in 60 s.")
+            OpStatus.Success("Copied first line. Clipboard clears in 45 s.")
         }
     }
 }
