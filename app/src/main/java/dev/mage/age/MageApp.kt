@@ -24,6 +24,7 @@ class MageApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        cacheDir.listFiles { f -> f.name.startsWith("mage-dec") }?.forEach { it.delete() }
     }
 
     companion object {

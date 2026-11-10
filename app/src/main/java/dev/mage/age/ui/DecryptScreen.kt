@@ -338,7 +338,7 @@ private suspend fun copyFirstLine(
                     .lineSequence()
                     .first()
                     .trimEnd('\r')
-            } catch (e: IllegalArgumentException) {
+            } catch (e: Exception) {
                 null
             } finally {
                 temp.delete()
@@ -355,7 +355,7 @@ private suspend fun copyFirstLine(
 
         else -> {
             ClipboardGuard.copySensitive(context, "decrypted", line)
-            OpStatus.Success("Copied first line. Clipboard clears in 45 s.")
+            OpStatus.Success("Copied first line. Mage clears it after 45 s while it's open.")
         }
     }
 }
