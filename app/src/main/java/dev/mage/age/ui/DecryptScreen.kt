@@ -5,6 +5,7 @@
 
 package dev.mage.age.ui
 
+import android.content.Context
 import android.provider.DocumentsContract
 import android.widget.EditText
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,10 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -42,6 +45,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 import java.util.Arrays
 
 private enum class DecMode { IDENTITY, PASSPHRASE }
@@ -185,12 +191,16 @@ fun DecryptScreen(
             }
         }
 
-    fun startDecrypt() {
+    fun startDecrypt(toClipboard: Boolean = false) {
         if (inputUris.isEmpty()) {
             status = OpStatus.Error("Choose a .age file first")
             return
         }
         val batch = inputUris.size > 1
+        if (batch && toClipboard) {
+            status = OpStatus.Error("Copy works on one file at a time")
+            return
+        }
 
         // For a single file, decrypt into private cache first (validating the identity/passphrase) and
         // only open the save dialog if that succeeds — so a wrong passphrase never creates a 0-byte
@@ -207,8 +217,12 @@ fun DecryptScreen(
                 CryptoRunner.decryptToFile(context, buildIdentities(), src, temp)
             }.fold(
                 onSuccess = {
-                    pendingPlain = temp
-                    saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
+                    if (toClipboard) {
+                        status = copyFirstLine(context, temp)
+                    } else {
+                        pendingPlain = temp
+                        saveOutput.launch(SafIO.suggestDecryptedName(inputLabel))
+                    }
                 },
                 onFailure = {
                     temp.delete()
@@ -303,7 +317,55 @@ fun DecryptScreen(
             enabled = inputUris.isNotEmpty(),
             onClick = { startDecrypt() },
         )
+        if (inputUris.size <= 1) {
+            OutlinedButton(
+                onClick = { startDecrypt(toClipboard = true) },
+                enabled = inputUris.isNotEmpty() && !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Decrypt & copy first line") }
+        }
 
         StatusBanner(status)
+    }
+}
+
+private const val COPY_LIMIT_BYTES = 64L * 1024
+
+private suspend fun copyFirstLine(
+    context: Context,
+    temp: File,
+): OpStatus {
+    val line =
+        withContext(Dispatchers.IO) {
+            try {
+                if (temp.length() > COPY_LIMIT_BYTES) return@withContext null
+                Charsets.UTF_8
+                    .newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(temp.readBytes()))
+                    .toString()
+                    .lineSequence()
+                    .first()
+                    .trimEnd('\r')
+            } catch (e: CharacterCodingException) {
+                null
+            } finally {
+                temp.delete()
+            }
+        }
+    return when {
+        line == null -> {
+            OpStatus.Error("Can't copy: the file is over 64 KB or isn't plain text. Use Decrypt & save.")
+        }
+
+        line.isEmpty() -> {
+            OpStatus.Error("The first line of this file is empty")
+        }
+
+        else -> {
+            ClipboardGuard.copySensitive(context, "decrypted", line)
+            OpStatus.Success("Copied first line. Clipboard clears in 60 s.")
+        }
     }
 }
