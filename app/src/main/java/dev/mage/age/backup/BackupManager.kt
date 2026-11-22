@@ -74,12 +74,7 @@ object BackupManager {
             }
             val ciphertext = SafIO.openInput(context, input).use { it.readBytes() }
             val plaintext = AgeCrypto.decryptBytes(listOf(Passphrase.identity(passphrase)), ciphertext)
-            val entries =
-                runCatching { BackupCodec.deserialize(plaintext) }.getOrElse {
-                    val text = String(plaintext, Charsets.UTF_8)
-                    Identities.parseIdentity(text)
-                    listOf(BackupCodec.Entry("Imported key", text))
-                }
+            val entries = BackupCodec.parseRestored(plaintext)
 
             container.ensureVaultKey()
             val existing =

@@ -5,6 +5,7 @@
 
 package dev.mage.age.backup
 
+import dev.mage.age.crypto.Identities
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -50,6 +51,27 @@ object BackupCodec {
         return (0 until array.length()).map { index ->
             val obj = array.getJSONObject(index)
             Entry(label = obj.optString("label", "Identity"), key = obj.getString("key"))
+        }
+    }
+
+    /** A decrypted restore file is either a Mage bundle or a plain age key file (text, maybe CRLF or BOM). */
+    fun parseRestored(bytes: ByteArray): List<Entry> =
+        runCatching { deserialize(bytes) }.getOrElse {
+            val text = decodeText(bytes)
+            Identities.parseIdentity(text)
+            listOf(Entry("Imported key", text))
+        }
+
+    // Windows PowerShell 5.1 writes UTF-16LE for `>` redirects, and some editors write UTF-16 too.
+    private fun decodeText(bytes: ByteArray): String {
+        val b0 = bytes.getOrNull(0)?.toInt()?.and(0xFF)
+        val b1 = bytes.getOrNull(1)?.toInt()?.and(0xFF)
+        return when {
+            b0 == 0xFF && b1 == 0xFE -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+            b0 == 0xFE && b1 == 0xFF -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+            bytes.size >= 2 && bytes[1] == 0.toByte() -> String(bytes, Charsets.UTF_16LE)
+            bytes.size >= 2 && bytes[0] == 0.toByte() -> String(bytes, Charsets.UTF_16BE)
+            else -> String(bytes, Charsets.UTF_8).removePrefix("\uFEFF")
         }
     }
 }
