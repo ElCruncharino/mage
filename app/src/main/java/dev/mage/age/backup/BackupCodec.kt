@@ -62,27 +62,15 @@ object BackupCodec {
             listOf(Entry("Imported key", text))
         }
 
-    // Windows PowerShell 5.1 writes UTF-16LE for `>` redirects, and some editors write UTF-16 too.
-    private fun decodeText(bytes: ByteArray): String =
-        when {
-            bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte() -> {
-                String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+    // Windows PowerShell 5.1 writes UTF-16LE for `>` redirects. The BOM (if any) is stripped by extractSecret.
+    private fun decodeText(bytes: ByteArray): String {
+        val head = bytes.take(2)
+        val charset =
+            when {
+                head == listOf(0xFF.toByte(), 0xFE.toByte()) || head.getOrNull(1) == 0.toByte() -> Charsets.UTF_16LE
+                head == listOf(0xFE.toByte(), 0xFF.toByte()) || head.getOrNull(0) == 0.toByte() -> Charsets.UTF_16BE
+                else -> Charsets.UTF_8
             }
-
-            bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() -> {
-                String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
-            }
-
-            bytes.size >= 2 && bytes[1] == 0.toByte() -> {
-                String(bytes, Charsets.UTF_16LE)
-            }
-
-            bytes.size >= 2 && bytes[0] == 0.toByte() -> {
-                String(bytes, Charsets.UTF_16BE)
-            }
-
-            else -> {
-                String(bytes, Charsets.UTF_8)
-            }
-        }
+        return String(bytes, charset).removePrefix("\uFEFF")
+    }
 }
