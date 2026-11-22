@@ -63,15 +63,26 @@ object BackupCodec {
         }
 
     // Windows PowerShell 5.1 writes UTF-16LE for `>` redirects, and some editors write UTF-16 too.
-    private fun decodeText(bytes: ByteArray): String {
-        val b0 = bytes.getOrNull(0)?.toInt()?.and(0xFF)
-        val b1 = bytes.getOrNull(1)?.toInt()?.and(0xFF)
-        return when {
-            b0 == 0xFF && b1 == 0xFE -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
-            b0 == 0xFE && b1 == 0xFF -> String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
-            bytes.size >= 2 && bytes[1] == 0.toByte() -> String(bytes, Charsets.UTF_16LE)
-            bytes.size >= 2 && bytes[0] == 0.toByte() -> String(bytes, Charsets.UTF_16BE)
-            else -> String(bytes, Charsets.UTF_8).removePrefix("\uFEFF")
+    private fun decodeText(bytes: ByteArray): String =
+        when {
+            bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte() -> {
+                String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+            }
+
+            bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() -> {
+                String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+            }
+
+            bytes.size >= 2 && bytes[1] == 0.toByte() -> {
+                String(bytes, Charsets.UTF_16LE)
+            }
+
+            bytes.size >= 2 && bytes[0] == 0.toByte() -> {
+                String(bytes, Charsets.UTF_16BE)
+            }
+
+            else -> {
+                String(bytes, Charsets.UTF_8)
+            }
         }
-    }
 }
