@@ -17,12 +17,27 @@ object Identities {
     fun generate(postQuantum: Boolean = false): Identity = if (postQuantum) MlKem768X25519Identity.`new`() else X25519Identity.`new`()
 
     fun parseIdentity(text: String): Identity {
-        val t = text.trim()
+        val t = extractSecret(text)
         return if (t.startsWith("AGE-SECRET-KEY-PQ-", ignoreCase = true)) {
             MlKem768X25519Identity.decode(t)
         } else {
             X25519Identity.decode(t)
         }
+    }
+
+    /**
+     * Pull the secret key out of pasted text. Accepts a bare key, or a whole `age-keygen` output file
+     * (with `# created:` / `# public key:` comment lines), and tolerates a leading UTF-8 byte-order mark
+     * (written by some Windows editors) and CRLF line endings. Falls back to the trimmed input so a
+     * malformed value still fails in the decoder with its own error.
+     */
+    fun extractSecret(text: String): String {
+        val cleaned = text.trim().removePrefix("﻿").trim()
+        return cleaned
+            .lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotEmpty() && !it.startsWith("#") }
+            ?: cleaned
     }
 
     fun recipientOf(identity: Identity): Recipient =

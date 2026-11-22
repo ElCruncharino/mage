@@ -184,7 +184,11 @@ fun IdentitiesScreen(
                         reload()
                         status = OpStatus.Success("Identity imported")
                     }.onFailure {
-                        status = OpStatus.Error(vaultInvalidatedMessage(it) ?: "Not a valid identity key")
+                        status =
+                            OpStatus.Error(
+                                vaultInvalidatedMessage(it)
+                                    ?: "Not a valid identity key: ${it.message ?: it::class.java.simpleName}",
+                            )
                     }
                 }
             },
