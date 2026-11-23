@@ -5,6 +5,7 @@
 
 package dev.mage.age.backup
 
+import dev.mage.age.crypto.Identities
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -51,5 +52,25 @@ object BackupCodec {
             val obj = array.getJSONObject(index)
             Entry(label = obj.optString("label", "Identity"), key = obj.getString("key"))
         }
+    }
+
+    /** A decrypted restore file is either a Mage bundle or a plain age key file (text, maybe CRLF or BOM). */
+    fun parseRestored(bytes: ByteArray): List<Entry> =
+        runCatching { deserialize(bytes) }.getOrElse {
+            val text = decodeText(bytes)
+            Identities.parseIdentity(text)
+            listOf(Entry("Imported key", text))
+        }
+
+    // Windows PowerShell 5.1 writes UTF-16LE for `>` redirects. The BOM (if any) is stripped by extractSecret.
+    private fun decodeText(bytes: ByteArray): String {
+        val head = bytes.take(2)
+        val charset =
+            when {
+                head == listOf(0xFF.toByte(), 0xFE.toByte()) || head.getOrNull(1) == 0.toByte() -> Charsets.UTF_16LE
+                head == listOf(0xFE.toByte(), 0xFF.toByte()) || head.getOrNull(0) == 0.toByte() -> Charsets.UTF_16BE
+                else -> Charsets.UTF_8
+            }
+        return String(bytes, charset).removePrefix("\uFEFF")
     }
 }

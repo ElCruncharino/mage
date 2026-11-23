@@ -52,9 +52,10 @@ object BackupManager {
     }
 
     /**
-     * Restore identities from an encrypted backup at [input] using [passphrase]. Identities whose
-     * public key already exists are skipped. Returns counts. Does not require unlocking (it seals the
-     * imported keys with the current vault key, which is a write).
+     * Restore identities from an encrypted file at [input] using [passphrase]. The file can be a Mage
+     * backup bundle or a plain age key file (from age-keygen, or exported on another machine).
+     * Identities whose public key already exists are skipped. Returns counts. Does not require
+     * unlocking (it seals the imported keys with the current vault key, which is a write).
      */
     suspend fun import(
         context: Context,
@@ -73,7 +74,7 @@ object BackupManager {
             }
             val ciphertext = SafIO.openInput(context, input).use { it.readBytes() }
             val plaintext = AgeCrypto.decryptBytes(listOf(Passphrase.identity(passphrase)), ciphertext)
-            val entries = BackupCodec.deserialize(plaintext)
+            val entries = BackupCodec.parseRestored(plaintext)
 
             container.ensureVaultKey()
             val existing =
