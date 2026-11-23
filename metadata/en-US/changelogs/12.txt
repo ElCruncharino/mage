@@ -1,0 +1,1 @@
+Restore also accepts a plain age key file, including key files saved as UTF-16 (the default for PowerShell redirects on Windows).
