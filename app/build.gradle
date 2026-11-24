@@ -27,7 +27,7 @@ android {
         applicationId = 'dev.mage.age'
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
+        versionCode = 13
         versionName = project.version.toString()
         testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
     }

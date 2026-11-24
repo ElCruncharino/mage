@@ -1,0 +1,1 @@
+Adds a Background gradient switch under Appearance. Turn it off for a flat background. Status and navigation bar icons now follow the app's Light or Dark setting.
