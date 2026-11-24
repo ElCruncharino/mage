@@ -206,6 +206,25 @@ fun SettingsScreen(
                 }
             }
 
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Switch(
+                    checked = theme.backgroundGradient,
+                    onCheckedChange = { theme.backgroundGradient = it },
+                    modifier =
+                        Modifier.semantics {
+                            stateDescription = if (theme.backgroundGradient) "On" else "Off"
+                        },
+                )
+                Column {
+                    Text("Background gradient")
+                    Text(
+                        "A soft accent wash behind each screen. Off uses a flat background.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             Text("Accent colour", style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 accentOptions.forEach { (name, argb) ->

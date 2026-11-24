@@ -79,9 +79,14 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GradientBackground(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    if (!enabled) {
+        Box(modifier = modifier.fillMaxSize().background(scheme.surface)) { content() }
+        return
+    }
     val topColor by animateColorAsState(
         targetValue = scheme.primaryContainer.copy(alpha = 0.55f),
         animationSpec = tween(600),

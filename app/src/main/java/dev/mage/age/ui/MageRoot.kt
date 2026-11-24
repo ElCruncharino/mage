@@ -168,7 +168,10 @@ fun MageRoot(
             )
         },
     ) { innerPadding ->
-        GradientBackground(modifier = Modifier.fillMaxSize()) {
+        GradientBackground(
+            modifier = Modifier.fillMaxSize(),
+            enabled = container.theme.backgroundGradient,
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = start.route,
