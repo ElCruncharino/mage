@@ -21,7 +21,11 @@ android {
     // compileSdk 37: the latest androidx (core-ktx 1.19, lifecycle 2.11) require compiling against
     // API 37+. targetSdk stays at 36 — bumping the target opts into new runtime behaviors that should
     // be validated on-device first.
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = 'dev.mage.age'
