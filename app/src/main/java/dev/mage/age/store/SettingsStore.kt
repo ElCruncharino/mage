@@ -44,6 +44,11 @@ class SettingsStore(
         get() = prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
         set(value) = prefs.edit { putBoolean(KEY_DYNAMIC_COLOR, value) }
 
+    /** Draw the soft accent gradient behind every screen. Off leaves a flat surface colour. */
+    var backgroundGradient: Boolean
+        get() = prefs.getBoolean(KEY_BACKGROUND_GRADIENT, true)
+        set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_GRADIENT, value) }
+
     /** A user-picked accent seed colour (ARGB), or null to fall back to dynamic/brand colours. */
     var accentSeed: Int?
         get() = if (prefs.contains(KEY_ACCENT_SEED)) prefs.getInt(KEY_ACCENT_SEED, 0) else null
@@ -60,5 +65,6 @@ class SettingsStore(
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DYNAMIC_COLOR = "dynamic_color"
         private const val KEY_ACCENT_SEED = "accent_seed"
+        private const val KEY_BACKGROUND_GRADIENT = "background_gradient"
     }
 }

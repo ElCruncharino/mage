@@ -25,6 +25,7 @@ class ThemeController(
     private var themeModeState by mutableStateOf(settings.themeMode)
     private var dynamicColorState by mutableStateOf(settings.dynamicColor)
     private var accentSeedState by mutableStateOf(settings.accentSeed)
+    private var backgroundGradientState by mutableStateOf(settings.backgroundGradient)
 
     var themeMode: ThemeMode
         get() = themeModeState
@@ -38,6 +39,13 @@ class ThemeController(
         set(value) {
             dynamicColorState = value
             settings.dynamicColor = value
+        }
+
+    var backgroundGradient: Boolean
+        get() = backgroundGradientState
+        set(value) {
+            backgroundGradientState = value
+            settings.backgroundGradient = value
         }
 
     var accentSeed: Int?
